@@ -138,6 +138,26 @@ export default class LakeScraper extends BaseScraper {
     try {
       // Extract data using page.evaluate to run in browser context
       const data = await page.evaluate(() => {
+        // Helper to decode HTML entities and preserve newlines
+        const htmlToText = (html: string): string => {
+          // Replace <br> tags with a unique marker
+          const withMarkers = html.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
+
+          // Create temporary element to decode HTML entities
+          const temp = document.createElement('div')
+          temp.innerHTML = withMarkers
+
+          // Get text content (automatically decodes &amp; etc.)
+          const decoded = temp.textContent || ''
+
+          // Split by marker, clean up, and rejoin
+          return decoded
+            .split('|||NEWLINE|||')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .join('\n')
+        }
+
         // Find all table rows in property_head table
         const rows = Array.from(document.querySelectorAll('table.property_head tr'))
 
@@ -158,15 +178,7 @@ export default class LakeScraper extends BaseScraper {
               if (text === 'Name:') {
                 const valueCell = cells[i + 1]
                 if (valueCell && valueCell.classList.contains('property_item')) {
-                  // Get HTML and preserve newlines from <br> tags
-                  const html = valueCell.innerHTML
-                  ownerName = html
-                    .replace(/<br\s*\/?>/gi, '\n')
-                    .replace(/<[^>]+>/g, '')
-                    .split('\n')
-                    .map(line => line.trim())
-                    .filter(line => line.length > 0)
-                    .join('\n')
+                  ownerName = htmlToText(valueCell.innerHTML)
                 }
               }
 
@@ -186,14 +198,11 @@ export default class LakeScraper extends BaseScraper {
                   spans.forEach(span => span.remove())
 
                   // Get the HTML content and process it
-                  const html = clone.innerHTML
-                  // Replace <br> tags with newlines, then clean up
-                  mailingAddress = html
-                    .replace(/<br\s*\/?>/gi, '\n')
-                    .replace(/<[^>]+>/g, '') // Remove all other HTML tags
+                  const text = htmlToText(clone.innerHTML)
+                  // Filter out "Update Mailing Address" text
+                  mailingAddress = text
                     .split('\n')
-                    .map(line => line.trim())
-                    .filter(line => line.length > 0 && !line.includes('Update Mailing Address'))
+                    .filter(line => !line.includes('Update Mailing Address'))
                     .join('\n')
                 }
               }

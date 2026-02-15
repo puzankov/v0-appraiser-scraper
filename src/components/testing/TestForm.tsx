@@ -55,29 +55,21 @@ export function TestForm({ onTestResult, onTestSaved }: TestFormProps) {
       const hasExpectedValues = formData.expectedOwnerName.trim() !== '' && formData.expectedAddress.trim() !== ''
 
       if (hasExpectedValues) {
-        // Mode 1: Run as test with expected values
+        // Mode 1: Run as test with expected values (without saving)
         const testCaseData = {
           ...formData,
           name: `${formData.countyId}_${formData.identifier}`,
         }
 
-        // Create test case
-        const createResponse = await fetch('/api/test-cases', {
+        // Run test without saving
+        const runResponse = await fetch('/api/test-cases/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(testCaseData),
         })
 
-        if (!createResponse.ok) {
-          throw new Error('Failed to create test case')
-        }
-
-        const { testCase } = await createResponse.json()
-
-        // Run test case
-        const runResponse = await fetch(`/api/test-cases/${testCase.id}?run=true`)
         if (!runResponse.ok) {
-          throw new Error('Failed to run test case')
+          throw new Error('Failed to run test')
         }
 
         const result = await runResponse.json()

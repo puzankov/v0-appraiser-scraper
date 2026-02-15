@@ -1,7 +1,14 @@
 /**
- * Miami-Dade County Property Appraiser Scraper
- * URL Pattern: https://apps.miamidadepa.gov/PropertySearch/#/?folio={folio}
- * Note: This is an Angular SPA - requires waiting for dynamic content to load
+ * Pasco County Property Appraiser Scraper
+ * URL Pattern: https://search.pascopa.com/parcel.aspx?parcel={transformedParcelId}
+ *
+ * ParcelId Transformation:
+ * Input:  22-26-21-0030-00000-0280
+ * Steps:  1. Split by '-': ['22', '26', '21', '0030', '00000', '0280']
+ *         2. Rearrange first 3: ['21', '26', '22', '0030', '00000', '0280']
+ *         3. Join with '-': 21-26-22-0030-00000-0280
+ *         4. Remove non-numeric: 2126220030000000280
+ * Output: 2126220030000000280
  */
 
 import { Page } from 'puppeteer-core'
@@ -9,39 +16,61 @@ import { BaseScraper } from '../base/BaseScraper'
 import { ScrapeRequest, PropertyOwnerData } from '@/types/scraper'
 import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
-export default class MiamiDadeScraper extends BaseScraper {
+export default class PascoScraper extends BaseScraper {
   /**
-   * Miami-Dade uses direct URL navigation with folio as URL parameter
-   * ParcelID format: 30-3053-106-0510 -> needs to be converted to 3030531060510 (remove non-numeric)
+   * Transform Pasco parcelId for URL
+   * Rearranges first 3 segments and removes non-numeric characters
+   */
+  private transformParcelId(parcelId: string): string {
+    // Split by dash
+    const parts = parcelId.split('-')
+
+    if (parts.length < 3) {
+      throw new ScraperError(
+        ErrorCode.VALIDATION_ERROR,
+        `Invalid Pasco parcelId format: ${parcelId}. Expected format: XX-XX-XX-XXXX-XXXXX-XXXX`,
+        undefined,
+        this.config.id,
+        parcelId
+      )
+    }
+
+    // Rearrange: take 3rd, 2nd, 1st, then rest
+    const rearranged = [
+      parts[2],  // 3rd part
+      parts[1],  // 2nd part
+      parts[0],  // 1st part
+      ...parts.slice(3)  // rest as-is
+    ]
+
+    // Join and remove all non-numeric characters
+    const transformed = rearranged.join('-').replace(/[^0-9]/g, '')
+
+    console.log(`[${this.config.id}] Transformed parcelId "${parcelId}" to "${transformed}"`)
+
+    return transformed
+  }
+
+  /**
+   * Pasco uses direct URL navigation with transformed parcelId as query parameter
    */
   protected async navigateToSearch(page: Page, request?: ScrapeRequest): Promise<void> {
     if (!request) {
       throw new ScraperError(
         ErrorCode.VALIDATION_ERROR,
-        'Request is required for Miami-Dade County navigation',
+        'Request is required for Pasco County navigation',
         undefined,
         this.config.id
       )
     }
 
-    // Strip all non-numeric characters from parcelId to get folio
-    const folio = request.identifier.replace(/[^0-9]/g, '')
+    // Transform the parcelId
+    const transformedParcelId = this.transformParcelId(request.identifier)
 
-    if (!folio) {
-      throw new ScraperError(
-        ErrorCode.VALIDATION_ERROR,
-        'Invalid parcel ID format - no numeric characters found',
-        undefined,
-        this.config.id,
-        request.identifier
-      )
-    }
-
-    // Construct the direct URL with the folio
-    const url = `${this.config.searchUrl}#/?folio=${folio}`
+    // Construct the direct URL
+    const url = `${this.config.searchUrl}?parcel=${transformedParcelId}`
 
     console.log(`[${this.config.id}] Navigating to: ${url}`)
-    console.log(`[${this.config.id}] Transformed parcelId "${request.identifier}" to folio "${folio}"`)
 
     await page.goto(url, {
       waitUntil: 'networkidle2',
@@ -68,26 +97,9 @@ export default class MiamiDadeScraper extends BaseScraper {
       // Navigate directly to property page
       await this.navigateToSearch(page, request)
 
-      // Wait for Angular app to load and render property data
-      console.log(`[${this.config.id}] Waiting for Angular app to render...`)
-
-      // Wait for content that indicates the property data has loaded
-      // Try multiple possible selectors since we don't know the exact structure yet
-      try {
-        await page.waitForFunction(
-          () => {
-            // Look for any content that would indicate property data loaded
-            const bodyText = document.body.innerText
-            return bodyText.length > 1000 &&
-                   (bodyText.includes('Owner') || bodyText.includes('Mailing') || bodyText.includes('Property'))
-          },
-          { timeout: this.config.timeout || 15000 }
-        )
-      } catch (error) {
-        // If the generic wait fails, try waiting for a specific amount of time
-        console.log(`[${this.config.id}] Generic wait failed, waiting 5 seconds for content...`)
-        await page.waitForTimeout(5000)
-      }
+      // Wait for content to load
+      console.log(`[${this.config.id}] Waiting for property data...`)
+      await page.waitForSelector('#lblMailingAddress', { timeout: this.config.timeout || 10000 })
 
       // Extract property data
       console.log(`[${this.config.id}] Extracting property data...`)
@@ -152,15 +164,16 @@ export default class MiamiDadeScraper extends BaseScraper {
   }
 
   /**
-   * Miami-Dade doesn't need a search step - we navigate directly to the property page
+   * Pasco doesn't need a search step - we navigate directly to the property page
    */
   protected async performSearch(page: Page, request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
   /**
-   * Extract property data from Miami-Dade property details page
-   * This is an Angular SPA, so we need to search the rendered DOM
+   * Extract property data from Pasco property details page
+   * Owner and mailing address are in the same element, separated by <br/> tags
+   * First line is owner, remaining lines are mailing address
    */
   protected async extractPropertyData(
     page: Page,
@@ -172,81 +185,47 @@ export default class MiamiDadeScraper extends BaseScraper {
       // Extract data using page.evaluate to run in browser context
       const data = await page.evaluate(() => {
         // Helper to decode HTML entities and preserve newlines
-        const htmlToText = (html: string): string => {
+        const htmlToText = (html: string): string[] => {
           // Replace <br> tags with a unique marker
           const withMarkers = html.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
 
-          // Create temporary element to decode HTML entities
+          // Create a temporary element to decode HTML entities
           const temp = document.createElement('div')
           temp.innerHTML = withMarkers
 
-          // Get text content (automatically decodes &amp; etc.)
+          // Get text content (this decodes HTML entities like &amp;)
           const decoded = temp.textContent || ''
 
-          // Split by marker, clean up, and rejoin
+          // Split by marker and clean up
           return decoded
             .split('|||NEWLINE|||')
             .map(line => line.trim())
             .filter(line => line.length > 0)
-            .join('\n')
         }
 
         let ownerName = ''
         let mailingAddress = ''
 
-        // Miami-Dade specific structure:
-        // Labels are in <strong> tags, values are in sibling <div> elements
+        // Find the mailing address span
+        const mailingElement = document.querySelector('#lblMailingAddress')
 
-        // Find all strong tags that might contain labels
-        const strongElements = Array.from(document.querySelectorAll('strong'))
+        if (mailingElement) {
+          const lines = htmlToText(mailingElement.innerHTML)
 
-        for (const strong of strongElements) {
-          const labelText = strong.textContent?.trim() || ''
-          const lowerLabel = labelText.toLowerCase()
-
-          // Look for Owner label
-          if (lowerLabel === 'owner' && !ownerName) {
-            // Find the parent td
-            const td = strong.closest('td')
-            if (td) {
-              // Find the div with class ms-2 that contains the value
-              const valueDiv = td.querySelector('div.ms-2')
-              if (valueDiv) {
-                ownerName = htmlToText(valueDiv.innerHTML)
-              }
-            }
+          // First line is owner name
+          if (lines.length > 0) {
+            ownerName = lines[0]
           }
 
-          // Look for Mailing Address label
-          if (lowerLabel === 'mailing address' && !mailingAddress) {
-            // Find the parent td
-            const td = strong.closest('td')
-            if (td) {
-              // Find the div with class ms-2 that contains the value
-              const valueDiv = td.querySelector('div.ms-2')
-              if (valueDiv) {
-                mailingAddress = htmlToText(valueDiv.innerHTML)
-              }
-            }
-          }
-        }
-
-        // Alternative: Look for td with class pi_mailing_address
-        if (!mailingAddress) {
-          const mailingTd = document.querySelector('td.pi_mailing_address')
-          if (mailingTd) {
-            const valueDiv = mailingTd.querySelector('div.ms-2')
-            if (valueDiv) {
-              mailingAddress = htmlToText(valueDiv.innerHTML)
-            }
+          // Remaining lines are mailing address
+          if (lines.length > 1) {
+            mailingAddress = lines.slice(1).join('\n')
           }
         }
 
         return {
           ownerName,
-          mailingAddress,
-          // Return page HTML for debugging if needed
-          debugHtml: !ownerName || !mailingAddress ? document.body.innerHTML.substring(0, 5000) : ''
+          mailingAddress
         }
       })
 
@@ -265,15 +244,10 @@ export default class MiamiDadeScraper extends BaseScraper {
         )
       }
 
-      // Clean up the address - normalize newlines
-      const cleanedAddress = data.mailingAddress
-        .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
-        .trim()
-
       // Return the structured data
       return {
         ownerNames: [data.ownerName],
-        mailingAddress: cleanedAddress,
+        mailingAddress: data.mailingAddress,
         countyId: this.config.id,
         identifier,
         identifierType,

@@ -484,13 +484,13 @@
       "id": "pasco",
       "name": "Pasco County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://search.pascopa.com",
+      "searchUrl": "https://search.pascopa.com/parcel.aspx",
       "identifierTypes": ["parcelId"],
       "scraperModule": "pasco",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "pinellas": {
       "id": "pinellas",

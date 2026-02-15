@@ -24,7 +24,11 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
       const response = await fetch('/api/test-cases')
       if (response.ok) {
         const data = await response.json()
-        setTestCases(data.testCases || [])
+        // Sort test cases by name (case-insensitive)
+        const sorted = (data.testCases || []).sort((a: TestCase, b: TestCase) => {
+          return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        })
+        setTestCases(sorted)
       }
     } catch (error) {
       console.error('Failed to load test cases:', error)

@@ -140,13 +140,21 @@ export default class BrowardScraper extends BaseScraper {
     try {
       // Extract data using page.evaluate to run in browser context
       const data = await page.evaluate(() => {
-        // Helper function to preserve newlines from HTML
+        // Helper function to preserve newlines from HTML and decode entities
         const htmlToText = (element: Element): string => {
-          const html = element.innerHTML
-          return html
-            .replace(/<br\s*\/?>/gi, '\n')  // Replace <br> with newlines
-            .replace(/<[^>]+>/g, '')         // Remove all other HTML tags
-            .split('\n')
+          // Replace <br> tags with a unique marker
+          const html = element.innerHTML.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
+
+          // Create temporary element to decode HTML entities
+          const temp = document.createElement('div')
+          temp.innerHTML = html
+
+          // Get text content (automatically decodes &amp; etc.)
+          const decoded = temp.textContent || ''
+
+          // Split by marker, clean up, and rejoin
+          return decoded
+            .split('|||NEWLINE|||')
             .map(line => line.trim())
             .filter(line => line.length > 0)
             .join('\n')
