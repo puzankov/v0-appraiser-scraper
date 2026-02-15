@@ -1,16 +1,16 @@
 /**
- * Input component
+ * Textarea component
  */
 
 import React from 'react'
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
   error?: string
 }
 
-export function Input({ label, error, className = '', ...props }: InputProps) {
-  const baseClasses = 'block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white !text-gray-900 placeholder-gray-400'
+export function Textarea({ label, error, className = '', ...props }: TextareaProps) {
+  const baseClasses = 'block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white !text-gray-900 placeholder-gray-400 resize-y'
   const errorClasses = error ? 'border-red-500' : 'border-gray-300'
   const classes = `${baseClasses} ${errorClasses} ${className}`
 
@@ -21,7 +21,7 @@ export function Input({ label, error, className = '', ...props }: InputProps) {
           {label}
         </label>
       )}
-      <input className={classes} {...props} />
+      <textarea className={classes} {...props} />
       {error && (
         <p className="mt-1 text-sm text-red-600">{error}</p>
       )}

@@ -292,13 +292,13 @@
       "id": "lake",
       "name": "Lake County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://lakecopropappr.com",
+      "searchUrl": "https://lakecopropappr.com/property-details.aspx",
       "identifierTypes": ["parcelId"],
       "scraperModule": "lake",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "lee": {
       "id": "lee",

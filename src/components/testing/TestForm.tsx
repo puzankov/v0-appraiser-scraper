@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
 import { Card } from '@/components/ui/Card'
 import { TestResult } from '@/types/test'
@@ -34,11 +35,12 @@ export function TestForm({ onTestResult, onTestSaved }: TestFormProps) {
     fetch('/api/counties')
       .then((res) => res.json())
       .then((data) => {
-        setCounties(data.counties.filter((c: CountySummary) => c.enabled))
-        if (data.counties.length > 0) {
+        const enabledCounties = data.counties.filter((c: CountySummary) => c.enabled)
+        setCounties(enabledCounties)
+        if (enabledCounties.length > 0) {
           setFormData((prev) => ({
             ...prev,
-            countyId: data.counties[0].id,
+            countyId: enabledCounties[0].id,
           }))
         }
       })
@@ -50,36 +52,68 @@ export function TestForm({ onTestResult, onTestSaved }: TestFormProps) {
     setLoading(true)
 
     try {
-      // Auto-generate name from county and identifier
-      const testCaseData = {
-        ...formData,
-        name: `${formData.countyId}_${formData.identifier}`,
+      const hasExpectedValues = formData.expectedOwnerName.trim() !== '' && formData.expectedAddress.trim() !== ''
+
+      if (hasExpectedValues) {
+        // Mode 1: Run as test with expected values
+        const testCaseData = {
+          ...formData,
+          name: `${formData.countyId}_${formData.identifier}`,
+        }
+
+        // Create test case
+        const createResponse = await fetch('/api/test-cases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(testCaseData),
+        })
+
+        if (!createResponse.ok) {
+          throw new Error('Failed to create test case')
+        }
+
+        const { testCase } = await createResponse.json()
+
+        // Run test case
+        const runResponse = await fetch(`/api/test-cases/${testCase.id}?run=true`)
+        if (!runResponse.ok) {
+          throw new Error('Failed to run test case')
+        }
+
+        const result = await runResponse.json()
+        onTestResult(result)
+      } else {
+        // Mode 2: Just scrape without testing
+        const scrapeResponse = await fetch('/api/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            countyId: formData.countyId,
+            identifierType: formData.identifierType,
+            identifier: formData.identifier,
+          }),
+        })
+
+        if (!scrapeResponse.ok) {
+          throw new Error('Failed to scrape data')
+        }
+
+        const scrapeResult = await scrapeResponse.json()
+
+        // Format as test result for display (no assertions)
+        onTestResult({
+          testCaseId: 'preview',
+          testCaseName: `${formData.countyId}_${formData.identifier}`,
+          passed: true, // No test, so it's always "passed" (just viewing data)
+          scrapeResult,
+          assertions: [],
+          executedAt: new Date().toISOString(),
+          duration: scrapeResult.metadata.duration,
+        })
       }
-
-      // Create test case
-      const createResponse = await fetch('/api/test-cases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testCaseData),
-      })
-
-      if (!createResponse.ok) {
-        throw new Error('Failed to create test case')
-      }
-
-      const { testCase } = await createResponse.json()
-
-      // Run test case
-      const runResponse = await fetch(`/api/test-cases/${testCase.id}?run=true`)
-      if (!runResponse.ok) {
-        throw new Error('Failed to run test case')
-      }
-
-      const result = await runResponse.json()
-      onTestResult(result)
     } catch (error) {
-      console.error('Test execution failed:', error)
-      alert(`Test failed: ${error instanceof Error ? error.message : String(error)}`)
+      console.error('Execution failed:', error)
+      alert(`Failed: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setLoading(false)
     }
@@ -161,20 +195,20 @@ export function TestForm({ onTestResult, onTestSaved }: TestFormProps) {
           required
         />
 
-        <Input
-          label="Expected Owner Name"
+        <Textarea
+          label="Expected Owner Name (Optional)"
           value={formData.expectedOwnerName}
           onChange={(e) => setFormData({ ...formData, expectedOwnerName: e.target.value })}
-          placeholder="Expected owner name"
-          required
+          placeholder="Leave empty to just view scraped data"
+          rows={3}
         />
 
-        <Input
-          label="Expected Address"
+        <Textarea
+          label="Expected Address (Optional)"
           value={formData.expectedAddress}
           onChange={(e) => setFormData({ ...formData, expectedAddress: e.target.value })}
-          placeholder="Expected mailing address"
-          required
+          placeholder="Leave empty to just view scraped data"
+          rows={3}
         />
 
         <Input
@@ -186,11 +220,13 @@ export function TestForm({ onTestResult, onTestSaved }: TestFormProps) {
 
         <div className="flex gap-3 pt-2">
           <Button type="submit" disabled={loading} className="flex-1">
-            {loading ? 'Running...' : 'Run Test'}
+            {loading ? 'Running...' : (formData.expectedOwnerName && formData.expectedAddress ? 'Run Test' : 'Scrape Data')}
           </Button>
-          <Button type="button" variant="secondary" onClick={handleSave} disabled={loading}>
-            Save Test Case
-          </Button>
+          {formData.expectedOwnerName && formData.expectedAddress && (
+            <Button type="button" variant="secondary" onClick={handleSave} disabled={loading}>
+              Save Test Case
+            </Button>
+          )}
         </div>
       </form>
     </Card>
