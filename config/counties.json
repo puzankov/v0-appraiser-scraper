@@ -268,13 +268,13 @@
       "id": "hillsborough",
       "name": "Hillsborough County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://gis.hcpafl.org/PropertySearch",
+      "searchUrl": "https://gis.hcpafl.org/PropertySearch/",
       "identifierTypes": ["parcelId"],
       "scraperModule": "hillsborough",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "indian-river": {
       "id": "indian-river",

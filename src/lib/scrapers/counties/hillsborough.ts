@@ -1,7 +1,7 @@
 /**
- * Broward County Property Appraiser Scraper
- * URL Pattern: https://bcpa.net/RecInfo.asp?URL_Folio={parcelId}
- * Note: ParcelId is used directly in URL without transformation
+ * Hillsborough County Property Appraiser Scraper
+ * URL Pattern: https://gis.hcpafl.org/PropertySearch/#/parcel/basic/{parcelId}
+ * Note: This is a JavaScript SPA - requires waiting for dynamic content to load
  */
 
 import { Page } from 'puppeteer-core'
@@ -9,25 +9,25 @@ import { BaseScraper } from '../base/BaseScraper'
 import { ScrapeRequest, PropertyOwnerData } from '@/types/scraper'
 import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
-export default class BrowardScraper extends BaseScraper {
+export default class HillsboroughScraper extends BaseScraper {
   /**
-   * Broward uses direct URL navigation with parcelId as query parameter
-   * No transformation needed - parcelId is used as-is
+   * Hillsborough uses direct URL navigation with parcelId in URL hash
+   * ParcelId is used directly without transformation
    */
   protected async navigateToSearch(page: Page, request?: ScrapeRequest): Promise<void> {
     if (!request) {
       throw new ScraperError(
         ErrorCode.VALIDATION_ERROR,
-        'Request is required for Broward County navigation',
+        'Request is required for Hillsborough County navigation',
         undefined,
         this.config.id
       )
     }
 
-    // Construct the direct URL with the parcelId (no transformation needed)
-    const url = `${this.config.searchUrl}?URL_Folio=${encodeURIComponent(request.identifier)}`
+    // Construct the direct URL with the parcelId in hash
+    const url = `${this.config.searchUrl}#/parcel/basic/${encodeURIComponent(request.identifier)}`
 
-    console.log(`[${this.config.id}] Navigating directly to: ${url}`)
+    console.log(`[${this.config.id}] Navigating to: ${url}`)
 
     await page.goto(url, {
       waitUntil: 'networkidle2',
@@ -54,9 +54,23 @@ export default class BrowardScraper extends BaseScraper {
       // Navigate directly to property page
       await this.navigateToSearch(page, request)
 
-      // Wait for content to load
-      console.log(`[${this.config.id}] Waiting for property data...`)
-      await page.waitForSelector('table', { timeout: this.config.timeout || 10000 })
+      // Wait for JavaScript SPA to load and render property data
+      console.log(`[${this.config.id}] Waiting for SPA to render...`)
+
+      // Wait for the owner name to be populated
+      try {
+        await page.waitForFunction(
+          () => {
+            const ownerElement = document.querySelector('h4[data-bind*="publicOwner"]')
+            return ownerElement && ownerElement.textContent && ownerElement.textContent.trim().length > 0
+          },
+          { timeout: this.config.timeout || 15000 }
+        )
+      } catch (error) {
+        console.log(`[${this.config.id}] Wait for owner failed, trying alternative wait...`)
+        // Fallback: wait for mailing address section
+        await page.waitForTimeout(5000)
+      }
 
       // Extract property data
       console.log(`[${this.config.id}] Extracting property data...`)
@@ -121,15 +135,15 @@ export default class BrowardScraper extends BaseScraper {
   }
 
   /**
-   * Broward doesn't need a search step - we navigate directly to the property page
+   * Hillsborough doesn't need a search step - we navigate directly to the property page
    */
   protected async performSearch(page: Page, request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
   /**
-   * Extract property data from Broward property details page
-   * Data is in a table structure with label cells followed by value cells
+   * Extract property data from Hillsborough property details page
+   * This is a JavaScript SPA using Knockout.js data bindings
    */
   protected async extractPropertyData(
     page: Page,
@@ -155,28 +169,28 @@ export default class BrowardScraper extends BaseScraper {
         let ownerName = ''
         let mailingAddress = ''
 
-        // Broward uses a table structure where labels and values are in adjacent TD cells
-        const allCells = Array.from(document.querySelectorAll('td'))
+        // Find the h4 element with publicOwner data binding
+        const ownerElement = document.querySelector('h4[data-bind*="publicOwner"]')
+        if (ownerElement) {
+          ownerName = htmlToText(ownerElement)
+        }
 
-        for (let i = 0; i < allCells.length; i++) {
-          const cell = allCells[i]
-          const text = cell.textContent?.trim() || ''
+        // Find the p element with mailingAddress.publicAddress data binding
+        const addressElement = document.querySelector('p.multiline[data-bind*="mailingAddress"]')
+        if (addressElement) {
+          mailingAddress = htmlToText(addressElement)
+        }
 
-          // Look for "Property Owner" label
-          if (text === 'Property Owner') {
-            // The next TD cell should contain the owner name
-            const nextCell = allCells[i + 1]
-            if (nextCell) {
-              ownerName = htmlToText(nextCell)
-            }
-          }
-
-          // Look for "Mailing Address" label
-          if (text === 'Mailing Address') {
-            // The next TD cell should contain the mailing address
-            const nextCell = allCells[i + 1]
-            if (nextCell) {
-              mailingAddress = htmlToText(nextCell)
+        // Alternative: look for any h5 with "Mailing Address" and get the next p
+        if (!mailingAddress) {
+          const h5Elements = Array.from(document.querySelectorAll('h5'))
+          for (const h5 of h5Elements) {
+            if (h5.textContent?.trim() === 'Mailing Address') {
+              const nextP = h5.nextElementSibling
+              if (nextP && nextP.tagName === 'P') {
+                mailingAddress = htmlToText(nextP)
+                break
+              }
             }
           }
         }

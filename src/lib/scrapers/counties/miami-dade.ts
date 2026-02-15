@@ -192,7 +192,15 @@ export default class MiamiDadeScraper extends BaseScraper {
               // Find the div with class ms-2 that contains the value
               const valueDiv = td.querySelector('div.ms-2')
               if (valueDiv) {
-                ownerName = valueDiv.textContent?.trim() || ''
+                // Get the HTML content and replace <br> with newlines
+                const html = valueDiv.innerHTML
+                ownerName = html
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .replace(/<[^>]+>/g, '') // Remove all other HTML tags
+                  .split('\n')
+                  .map(line => line.trim())
+                  .filter(line => line.length > 0)
+                  .join('\n')
               }
             }
           }

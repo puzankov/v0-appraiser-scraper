@@ -158,7 +158,15 @@ export default class LakeScraper extends BaseScraper {
               if (text === 'Name:') {
                 const valueCell = cells[i + 1]
                 if (valueCell && valueCell.classList.contains('property_item')) {
-                  ownerName = valueCell.textContent?.trim() || ''
+                  // Get HTML and preserve newlines from <br> tags
+                  const html = valueCell.innerHTML
+                  ownerName = html
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<[^>]+>/g, '')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                    .join('\n')
                 }
               }
 
