@@ -172,13 +172,13 @@
       "id": "escambia",
       "name": "Escambia County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.escpa.org",
+      "searchUrl": "https://www.escpa.org/cama/Detail_a.aspx",
       "identifierTypes": ["parcelId"],
       "scraperModule": "escambia",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "flagler": {
       "id": "flagler",
