@@ -112,13 +112,13 @@
       "id": "clay",
       "name": "Clay County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://qpublic.schneidercorp.com",
+      "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx",
       "identifierTypes": ["parcelId"],
       "scraperModule": "clay",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "collier": {
       "id": "collier",
