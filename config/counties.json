@@ -472,13 +472,13 @@
       "id": "palmbeach",
       "name": "Palm Beach County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://pbcpao.gov",
+      "searchUrl": "https://pbcpao.gov/Property/Details",
       "identifierTypes": ["parcelId"],
       "scraperModule": "palmbeach",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "pasco": {
       "id": "pasco",
