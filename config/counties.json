@@ -64,13 +64,13 @@
       "id": "broward",
       "name": "Broward County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://bcpa.net",
+      "searchUrl": "https://bcpa.net/RecInfo.asp",
       "identifierTypes": ["parcelId"],
       "scraperModule": "broward",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "calhoun": {
       "id": "calhoun",
