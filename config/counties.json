@@ -508,13 +508,13 @@
       "id": "polk",
       "name": "Polk County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.polkflpa.gov",
+      "searchUrl": "https://www.polkflpa.gov/CamaDisplay.aspx?migratedFrom=org&OutputMode=Display&SearchType=RealEstate&Page=FindByID",
       "identifierTypes": ["parcelId"],
       "scraperModule": "polk",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "putnam": {
       "id": "putnam",
