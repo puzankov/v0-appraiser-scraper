@@ -616,13 +616,13 @@
       "id": "volusia",
       "name": "Volusia County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://vcpa.vcgov.org",
+      "searchUrl": "https://vcpa.vcgov.org/parcel/summary/",
       "identifierTypes": ["parcelId"],
       "scraperModule": "volusia",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "walton": {
       "id": "walton",
