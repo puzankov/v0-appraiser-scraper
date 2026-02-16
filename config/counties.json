@@ -4,13 +4,13 @@
       "id": "alachua",
       "name": "Alachua County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://qpublic.schneidercorp.com",
+      "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx?AppID=1081&LayerID=26490&PageTypeID=4&PageID=10770&Q=320373606",
       "identifierTypes": ["parcelId"],
       "scraperModule": "alachua",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "baker": {
       "id": "baker",

@@ -2,6 +2,7 @@
  * Export all county scrapers
  */
 
+export { default as AlachuaScraper } from './alachua'
 export { default as MiamiDadeScraper } from './miami-dade'
 export { default as BrowardScraper } from './broward'
 export { default as LakeScraper } from './lake'
