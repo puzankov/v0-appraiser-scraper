@@ -496,13 +496,13 @@
       "id": "pinellas",
       "name": "Pinellas County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.pcpao.gov",
+      "searchUrl": "https://www.pcpao.gov/property-details",
       "identifierTypes": ["parcelId"],
       "scraperModule": "pinellas",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "polk": {
       "id": "polk",
