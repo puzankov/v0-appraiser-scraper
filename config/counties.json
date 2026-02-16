@@ -184,13 +184,13 @@
       "id": "flagler",
       "name": "Flagler County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://qpublic.schneidercorp.com",
+      "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx?AppID=598&LayerID=9801&PageTypeID=4&PageID=4330&Q=1544474436",
       "identifierTypes": ["parcelId"],
       "scraperModule": "flagler",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "gilchrist": {
       "id": "gilchrist",

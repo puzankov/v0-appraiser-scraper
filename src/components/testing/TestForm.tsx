@@ -134,9 +134,9 @@ export function TestForm({ onTestResult, onTestSaved }: TestFormProps) {
       alert('Test case saved successfully!')
       onTestSaved()
 
-      // Reset form
+      // Reset form fields except county selection
       setFormData({
-        countyId: counties[0]?.id || '',
+        countyId: formData.countyId, // Keep the currently selected county
         identifierType: 'parcelId',
         identifier: '',
         expectedOwnerName: '',
