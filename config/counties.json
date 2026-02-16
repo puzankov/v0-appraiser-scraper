@@ -532,13 +532,13 @@
       "id": "sarasota",
       "name": "Sarasota County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.sc-pa.com",
+      "searchUrl": "https://www.sc-pa.com/propertysearch/parcel",
       "identifierTypes": ["parcelId"],
       "scraperModule": "sarasota",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "santa-rosa": {
       "id": "santa-rosa",
