@@ -544,13 +544,13 @@
       "id": "santa-rosa",
       "name": "Santa Rosa County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://srcpa.gov",
+      "searchUrl": "https://parcelview.srcpa.gov",
       "identifierTypes": ["parcelId"],
       "scraperModule": "santa-rosa",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "seminole": {
       "id": "seminole",
