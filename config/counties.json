@@ -304,13 +304,13 @@
       "id": "lee",
       "name": "Lee County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "http://www.leepa.org",
+      "searchUrl": "http://www.leepa.org/Scripts/PropertyQuery/PropertyQuery.aspx",
       "identifierTypes": ["parcelId"],
       "scraperModule": "lee",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "leon": {
       "id": "leon",
