@@ -83,7 +83,7 @@ export default class DuvalScraper extends BaseScraper {
           duration,
         },
       }
-    } catch (_error) {
+    } catch (error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -195,7 +195,7 @@ export default class DuvalScraper extends BaseScraper {
         identifierType,
         scrapedAt: new Date().toISOString(),
       }
-    } catch (_error) {
+    } catch (error) {
       if (error instanceof ScraperError) {
         throw error
       }

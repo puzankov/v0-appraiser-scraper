@@ -67,7 +67,7 @@ export abstract class BaseScraper {
           duration,
         },
       }
-    } catch (_error) {
+    } catch (error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -176,7 +176,7 @@ export abstract class BaseScraper {
 
       const text = await page.evaluate((el) => el?.textContent?.trim() || null, element)
       return text
-    } catch (_error) {
+    } catch (error) {
       console.warn(`Failed to extract text from selector '${selector}':`, error)
       return null
     }
@@ -198,7 +198,7 @@ export abstract class BaseScraper {
       }
 
       return texts
-    } catch (_error) {
+    } catch (error) {
       console.warn(`Failed to extract multiple texts from selector '${selector}':`, error)
       return []
     }
@@ -212,7 +212,7 @@ export abstract class BaseScraper {
       await page.waitForSelector(selector, { timeout: 5000 })
       await page.focus(selector)
       await page.type(selector, value, { delay: 50 })
-    } catch (_error) {
+    } catch (error) {
       throw new ScraperError(
         ErrorCode.SEARCH_FAILED,
         `Failed to type into field '${selector}'`,
@@ -229,7 +229,7 @@ export abstract class BaseScraper {
     try {
       await page.waitForSelector(selector, { timeout: 5000 })
       await page.click(selector)
-    } catch (_error) {
+    } catch (error) {
       throw new ScraperError(
         ErrorCode.SEARCH_FAILED,
         `Failed to click button '${selector}'`,
