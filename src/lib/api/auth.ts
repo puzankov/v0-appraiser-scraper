@@ -16,6 +16,20 @@ export function validateApiKey(request: NextRequest): boolean {
     return true
   }
 
+  // Allow internal requests from testing UI
+  const referer = request.headers.get('referer')
+  const origin = request.headers.get('origin')
+  const host = request.headers.get('host')
+
+  if (referer || origin) {
+    const requestOrigin = referer || origin || ''
+    // Check if request is from same domain (internal testing UI)
+    if (host && requestOrigin.includes(host)) {
+      console.log('[Auth] Internal request from testing UI - bypassing API key check')
+      return true
+    }
+  }
+
   // Check header first (recommended)
   const headerApiKey = request.headers.get('x-api-key') || request.headers.get('X-API-Key')
 
