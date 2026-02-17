@@ -45,7 +45,20 @@ npm install
 cp .env.example .env.local
 ```
 
-4. Start the development server:
+4. Configure your API key in `.env.local`:
+```bash
+API_KEY=your_secret_api_key_here
+```
+
+Generate a secure API key:
+```bash
+# On Linux/Mac:
+openssl rand -base64 32
+
+# Or use any secure random string generator
+```
+
+5. Start the development server:
 ```bash
 npm run dev
 ```
@@ -88,9 +101,37 @@ test-cases/                       # Saved test cases
 
 ## API Documentation
 
+📖 **[Complete API Documentation](./API.md)**
+
+### Authentication
+
+All API requests require authentication via API key. Include your API key in requests:
+
+**Header (Recommended):**
+```bash
+X-API-Key: your_api_key_here
+```
+
+**Query Parameter:**
+```bash
+?apiKey=your_api_key_here
+```
+
 ### POST /api/scrape
 
 Scrape property data from a county appraiser website.
+
+**Request:**
+```bash
+curl -X POST http://localhost:3000/api/scrape \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
+  -d '{
+    "countyId": "miami-dade",
+    "identifierType": "parcelId",
+    "identifier": "12345"
+  }'
+```
 
 **Request Body:**
 ```json
