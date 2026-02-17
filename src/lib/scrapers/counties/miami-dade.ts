@@ -43,9 +43,11 @@ export default class MiamiDadeScraper extends BaseScraper {
     console.log(`[${this.config.id}] Navigating to: ${url}`)
     console.log(`[${this.config.id}] Transformed parcelId "${request.identifier}" to folio "${folio}"`)
 
+    // For Angular SPAs, use 'domcontentloaded' instead of 'networkidle2'
+    // as the app continues to make requests after initial load
     await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: this.config.timeout || 30000,
+      waitUntil: 'domcontentloaded',
+      timeout: 60000, // Increased timeout for Angular app
     })
   }
 
@@ -71,8 +73,16 @@ export default class MiamiDadeScraper extends BaseScraper {
       // Wait for Angular app to load and render property data
       console.log(`[${this.config.id}] Waiting for Angular app to render...`)
 
-      // Wait for content that indicates the property data has loaded
-      // Try multiple possible selectors since we don't know the exact structure yet
+      // First wait for Angular to bootstrap
+      await page.waitForFunction(
+        () => {
+          // Check if Angular app has initialized
+          return document.body.innerText.length > 500
+        },
+        { timeout: 30000 }
+      )
+
+      // Then wait for property data to load
       try {
         await page.waitForFunction(
           () => {
@@ -81,12 +91,12 @@ export default class MiamiDadeScraper extends BaseScraper {
             return bodyText.length > 1000 &&
                    (bodyText.includes('Owner') || bodyText.includes('Mailing') || bodyText.includes('Property'))
           },
-          { timeout: this.config.timeout || 15000 }
+          { timeout: 30000 }
         )
       } catch (_error) {
-        // If the generic wait fails, try waiting for a specific amount of time
-        console.log(`[${this.config.id}] Generic wait failed, waiting 5 seconds for content...`)
-        await page.waitForTimeout(5000)
+        // If the wait fails, give it more time
+        console.log(`[${this.config.id}] Waiting additional time for content...`)
+        await page.waitForTimeout(10000)
       }
 
       // Extract property data

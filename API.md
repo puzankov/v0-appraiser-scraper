@@ -3,10 +3,12 @@
 ## Base URL
 
 ```
-http://localhost:3000/api
-```
+# Local Development
+http://localhost:3434/api
 
-For production deployment on Vercel, replace with your production URL.
+# Production
+https://v0-appraiser-scraper.vercel.app/api
+```
 
 ## Authentication
 
@@ -122,7 +124,7 @@ Scrape property owner and mailing address data from a Florida county property ap
 **cURL Example:**
 
 ```bash
-curl -X POST http://localhost:3000/api/scrape \
+curl -X POST https://v0-appraiser-scraper.vercel.app/api/scrape \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{
@@ -135,7 +137,7 @@ curl -X POST http://localhost:3000/api/scrape \
 **Node.js Example:**
 
 ```javascript
-const response = await fetch('http://localhost:3000/api/scrape', {
+const response = await fetch('https://v0-appraiser-scraper.vercel.app/api/scrape', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -158,7 +160,7 @@ console.log(result);
 import requests
 
 response = requests.post(
-    'http://localhost:3000/api/scrape',
+    'https://v0-appraiser-scraper.vercel.app/api/scrape',
     headers={
         'Content-Type': 'application/json',
         'X-API-Key': 'your_api_key_here'
@@ -210,7 +212,7 @@ Get a list of all available Florida counties supported by the scraper.
 **cURL Example:**
 
 ```bash
-curl http://localhost:3000/api/counties \
+curl https://v0-appraiser-scraper.vercel.app/api/counties \
   -H "X-API-Key: your_api_key_here"
 ```
 
@@ -290,7 +292,7 @@ Typical response times by county:
 ```javascript
 async function scrapeProperty(countyId, identifier) {
   try {
-    const response = await fetch('http://localhost:3000/api/scrape', {
+    const response = await fetch('https://v0-appraiser-scraper.vercel.app/api/scrape', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
