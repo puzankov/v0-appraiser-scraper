@@ -15,7 +15,7 @@ const TEST_CASES_DIR = path.join(process.cwd(), 'test-cases')
 async function ensureTestCasesDir(): Promise<void> {
   try {
     await fs.mkdir(TEST_CASES_DIR, { recursive: true })
-  } catch (_error) {
+  } catch (error) {
     console.error('Failed to create test-cases directory:', error)
   }
 }
@@ -58,7 +58,8 @@ export async function loadTestCase(id: string): Promise<TestCase> {
   try {
     const content = await fs.readFile(filename, 'utf-8')
     return JSON.parse(content) as TestCase
-  } catch (_error) {
+  } catch (error) {
+    console.error(`Failed to load test case ${id}:`, error)
     throw new Error(`Test case '${id}' not found`)
   }
 }
@@ -70,8 +71,11 @@ export async function loadAllTestCases(): Promise<TestCase[]> {
   await ensureTestCasesDir()
 
   try {
+    console.log('[Storage] Loading test cases from:', TEST_CASES_DIR)
     const files = await fs.readdir(TEST_CASES_DIR)
+    console.log('[Storage] Found files:', files.length)
     const jsonFiles = files.filter((file) => file.endsWith('.json'))
+    console.log('[Storage] JSON files:', jsonFiles.length)
 
     const testCases: TestCase[] = []
     for (const file of jsonFiles) {
@@ -79,14 +83,17 @@ export async function loadAllTestCases(): Promise<TestCase[]> {
         const content = await fs.readFile(path.join(TEST_CASES_DIR, file), 'utf-8')
         const testCase = JSON.parse(content) as TestCase
         testCases.push(testCase)
-      } catch (_error) {
+      } catch (error) {
         console.warn(`Failed to load test case from ${file}:`, error)
       }
     }
 
+    console.log('[Storage] Loaded test cases:', testCases.length)
     return testCases
-  } catch (_error) {
+  } catch (error) {
     console.error('Failed to load test cases:', error)
+    console.error('TEST_CASES_DIR:', TEST_CASES_DIR)
+    console.error('process.cwd():', process.cwd())
     return []
   }
 }
@@ -99,7 +106,8 @@ export async function deleteTestCase(id: string): Promise<void> {
 
   try {
     await fs.unlink(filename)
-  } catch (_error) {
+  } catch (error) {
+    console.error(`Failed to delete test case ${id}:`, error)
     throw new Error(`Failed to delete test case '${id}'`)
   }
 }
