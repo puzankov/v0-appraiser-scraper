@@ -52,13 +52,13 @@
       "id": "brevard",
       "name": "Brevard County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.bcpao.us/PropertySearch",
+      "searchUrl": "https://www.bcpao.us/PropertySearch/",
       "identifierTypes": ["parcelId"],
       "scraperModule": "brevard",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "broward": {
       "id": "broward",
@@ -100,13 +100,13 @@
       "id": "citrus",
       "name": "Citrus County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.citruspa.org",
+      "searchUrl": "https://www.citruspa.org/_Web/datalets/datalet.aspx",
       "identifierTypes": ["parcelId"],
       "scraperModule": "citrus",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "clay": {
       "id": "clay",
@@ -160,13 +160,13 @@
       "id": "duval",
       "name": "Duval County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://paopropertysearch.coj.net",
+      "searchUrl": "https://paopropertysearch.coj.net/Basic/Detail.aspx",
       "identifierTypes": ["parcelId"],
       "scraperModule": "duval",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "escambia": {
       "id": "escambia",
@@ -364,13 +364,13 @@
       "id": "marion",
       "name": "Marion County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "http://www.pa.marion.fl.us",
+      "searchUrl": "http://www.pa.marion.fl.us/PRC.aspx",
       "identifierTypes": ["parcelId"],
       "scraperModule": "marion",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "martin": {
       "id": "martin",

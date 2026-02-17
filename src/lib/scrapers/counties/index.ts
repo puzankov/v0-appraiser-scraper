@@ -3,6 +3,7 @@
  */
 
 export { default as AlachuaScraper } from './alachua'
+export { default as BrevardScraper } from './brevard'
 export { default as MiamiDadeScraper } from './miami-dade'
 export { default as BrowardScraper } from './broward'
 export { default as LakeScraper } from './lake'
@@ -19,3 +20,6 @@ export { default as FlaglerScraper } from './flagler'
 export { default as PinellasScraper } from './pinellas'
 export { default as PolkScraper } from './polk'
 export { default as LeeScraper } from './lee'
+export { default as MarionScraper } from './marion'
+export { default as DuvalScraper } from './duval'
+export { default as CitrusScraper } from './citrus'
