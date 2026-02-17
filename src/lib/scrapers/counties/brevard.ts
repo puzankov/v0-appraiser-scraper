@@ -65,7 +65,7 @@ export default class BrevardScraper extends BaseScraper {
           },
           { timeout: this.config.timeout || 15000 }
         )
-      } catch (error) {
+      } catch (_error) {
         console.log(`[${this.config.id}] Wait for owner failed, trying alternative wait...`)
         // Fallback: wait for mailing address section
         await new Promise(resolve => setTimeout(resolve, 5000))
@@ -93,7 +93,7 @@ export default class BrevardScraper extends BaseScraper {
           duration,
         },
       }
-    } catch (error) {
+    } catch (_error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -136,7 +136,7 @@ export default class BrevardScraper extends BaseScraper {
   /**
    * Brevard doesn't need a search step - we navigate directly to the property page
    */
-  protected async performSearch(page: Page, request: ScrapeRequest): Promise<void> {
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
@@ -156,25 +156,6 @@ export default class BrevardScraper extends BaseScraper {
       // Extract data using page.evaluate to run in browser context
       const data = await page.evaluate(() => {
         // Helper function to preserve newlines from HTML and decode entities
-        const htmlToText = (element: Element): string => {
-          // Replace <br> tags with a unique marker
-          const html = element.innerHTML.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
-
-          // Create temporary element to decode HTML entities
-          const temp = document.createElement('div')
-          temp.innerHTML = html
-
-          // Get text content (automatically decodes &amp; etc.)
-          const decoded = temp.textContent || ''
-
-          // Split by marker, clean up, and rejoin
-          return decoded
-            .split('|||NEWLINE|||')
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
-            .join('\n')
-        }
-
         let ownerName = ''
         let mailingAddress = ''
 
@@ -222,7 +203,7 @@ export default class BrevardScraper extends BaseScraper {
         identifierType,
         scrapedAt: new Date().toISOString(),
       }
-    } catch (error) {
+    } catch (_error) {
       if (error instanceof ScraperError) {
         throw error
       }

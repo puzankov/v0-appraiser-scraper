@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saveTestCase, loadAllTestCases } from '@/lib/testing/storage'
 import { validateTestCaseInput } from '@/lib/scrapers/utils/validators'
-import { runTestCase, runTestCases } from '@/lib/testing/TestRunner'
+import { runTestCases } from '@/lib/testing/TestRunner'
 import { ZodError } from 'zod'
 import { ErrorCode } from '@/lib/scrapers/utils/errors'
 

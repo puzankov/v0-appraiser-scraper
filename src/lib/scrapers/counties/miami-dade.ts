@@ -83,7 +83,7 @@ export default class MiamiDadeScraper extends BaseScraper {
           },
           { timeout: this.config.timeout || 15000 }
         )
-      } catch (error) {
+      } catch (_error) {
         // If the generic wait fails, try waiting for a specific amount of time
         console.log(`[${this.config.id}] Generic wait failed, waiting 5 seconds for content...`)
         await page.waitForTimeout(5000)
@@ -111,7 +111,7 @@ export default class MiamiDadeScraper extends BaseScraper {
           duration,
         },
       }
-    } catch (error) {
+    } catch (_error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -154,7 +154,7 @@ export default class MiamiDadeScraper extends BaseScraper {
   /**
    * Miami-Dade doesn't need a search step - we navigate directly to the property page
    */
-  protected async performSearch(page: Page, request: ScrapeRequest): Promise<void> {
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
@@ -279,7 +279,7 @@ export default class MiamiDadeScraper extends BaseScraper {
         identifierType,
         scrapedAt: new Date().toISOString(),
       }
-    } catch (error) {
+    } catch (_error) {
       if (error instanceof ScraperError) {
         throw error
       }

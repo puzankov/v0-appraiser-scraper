@@ -6,7 +6,7 @@
 import { Browser, Page } from 'puppeteer-core'
 import { ScrapeRequest, ScrapeResult, PropertyOwnerData, CountyConfig } from '@/types/scraper'
 import { createBrowser, createPage, navigateToUrl, waitForSelector, closeBrowser } from '../utils/browser'
-import { ScraperError, ErrorCode, createNoResultsError, createExtractionError } from '../utils/errors'
+import { ScraperError, ErrorCode, createExtractionError } from '../utils/errors'
 
 export abstract class BaseScraper {
   protected config: CountyConfig
@@ -67,7 +67,7 @@ export abstract class BaseScraper {
           duration,
         },
       }
-    } catch (error) {
+    } catch (_error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -176,7 +176,7 @@ export abstract class BaseScraper {
 
       const text = await page.evaluate((el) => el?.textContent?.trim() || null, element)
       return text
-    } catch (error) {
+    } catch (_error) {
       console.warn(`Failed to extract text from selector '${selector}':`, error)
       return null
     }
@@ -198,7 +198,7 @@ export abstract class BaseScraper {
       }
 
       return texts
-    } catch (error) {
+    } catch (_error) {
       console.warn(`Failed to extract multiple texts from selector '${selector}':`, error)
       return []
     }
@@ -212,7 +212,7 @@ export abstract class BaseScraper {
       await page.waitForSelector(selector, { timeout: 5000 })
       await page.focus(selector)
       await page.type(selector, value, { delay: 50 })
-    } catch (error) {
+    } catch (_error) {
       throw new ScraperError(
         ErrorCode.SEARCH_FAILED,
         `Failed to type into field '${selector}'`,
@@ -229,7 +229,7 @@ export abstract class BaseScraper {
     try {
       await page.waitForSelector(selector, { timeout: 5000 })
       await page.click(selector)
-    } catch (error) {
+    } catch (_error) {
       throw new ScraperError(
         ErrorCode.SEARCH_FAILED,
         `Failed to click button '${selector}'`,

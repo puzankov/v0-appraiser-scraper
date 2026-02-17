@@ -15,7 +15,7 @@ const TEST_CASES_DIR = path.join(process.cwd(), 'test-cases')
 async function ensureTestCasesDir(): Promise<void> {
   try {
     await fs.mkdir(TEST_CASES_DIR, { recursive: true })
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to create test-cases directory:', error)
   }
 }
@@ -58,7 +58,7 @@ export async function loadTestCase(id: string): Promise<TestCase> {
   try {
     const content = await fs.readFile(filename, 'utf-8')
     return JSON.parse(content) as TestCase
-  } catch (error) {
+  } catch (_error) {
     throw new Error(`Test case '${id}' not found`)
   }
 }
@@ -79,13 +79,13 @@ export async function loadAllTestCases(): Promise<TestCase[]> {
         const content = await fs.readFile(path.join(TEST_CASES_DIR, file), 'utf-8')
         const testCase = JSON.parse(content) as TestCase
         testCases.push(testCase)
-      } catch (error) {
+      } catch (_error) {
         console.warn(`Failed to load test case from ${file}:`, error)
       }
     }
 
     return testCases
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to load test cases:', error)
     return []
   }
@@ -99,7 +99,7 @@ export async function deleteTestCase(id: string): Promise<void> {
 
   try {
     await fs.unlink(filename)
-  } catch (error) {
+  } catch (_error) {
     throw new Error(`Failed to delete test case '${id}'`)
   }
 }

@@ -58,7 +58,7 @@ export async function createBrowser(config: BrowserConfig = {}): Promise<Browser
 
       return browser
     }
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to launch browser:', error)
     throw new Error(`Browser launch failed: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -108,7 +108,7 @@ export async function navigateToUrl(
       waitUntil: 'networkidle2',
       timeout,
     })
-  } catch (error) {
+  } catch (_error) {
     throw new Error(`Navigation to ${url} failed: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
@@ -123,7 +123,7 @@ export async function waitForSelector(
 ): Promise<void> {
   try {
     await page.waitForSelector(selector, { timeout })
-  } catch (error) {
+  } catch (_error) {
     throw new Error(`Selector '${selector}' not found within ${timeout}ms`)
   }
 }
@@ -134,7 +134,7 @@ export async function waitForSelector(
 export async function closeBrowser(browser: Browser): Promise<void> {
   try {
     await browser.close()
-  } catch (error) {
+  } catch (_error) {
     console.error('Error closing browser:', error)
   }
 }

@@ -66,7 +66,7 @@ export default class HillsboroughScraper extends BaseScraper {
           },
           { timeout: this.config.timeout || 15000 }
         )
-      } catch (error) {
+      } catch (_error) {
         console.log(`[${this.config.id}] Wait for owner failed, trying alternative wait...`)
         // Fallback: wait for mailing address section
         await page.waitForTimeout(5000)
@@ -94,7 +94,7 @@ export default class HillsboroughScraper extends BaseScraper {
           duration,
         },
       }
-    } catch (error) {
+    } catch (_error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -137,7 +137,7 @@ export default class HillsboroughScraper extends BaseScraper {
   /**
    * Hillsborough doesn't need a search step - we navigate directly to the property page
    */
-  protected async performSearch(page: Page, request: ScrapeRequest): Promise<void> {
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
@@ -233,7 +233,7 @@ export default class HillsboroughScraper extends BaseScraper {
         identifierType,
         scrapedAt: new Date().toISOString(),
       }
-    } catch (error) {
+    } catch (_error) {
       if (error instanceof ScraperError) {
         throw error
       }

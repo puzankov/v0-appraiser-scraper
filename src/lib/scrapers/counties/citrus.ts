@@ -78,7 +78,7 @@ export default class CitrusScraper extends BaseScraper {
           duration,
         },
       }
-    } catch (error) {
+    } catch (_error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -121,7 +121,7 @@ export default class CitrusScraper extends BaseScraper {
   /**
    * Citrus County doesn't need a search step - we navigate directly to the property page
    */
-  protected async performSearch(page: Page, request: ScrapeRequest): Promise<void> {
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
@@ -201,7 +201,7 @@ export default class CitrusScraper extends BaseScraper {
         identifierType,
         scrapedAt: new Date().toISOString(),
       }
-    } catch (error) {
+    } catch (_error) {
       if (error instanceof ScraperError) {
         throw error
       }

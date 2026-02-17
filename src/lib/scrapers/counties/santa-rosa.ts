@@ -81,7 +81,7 @@ export default class SantaRosaScraper extends BaseScraper {
           duration,
         },
       }
-    } catch (error) {
+    } catch (_error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -124,7 +124,7 @@ export default class SantaRosaScraper extends BaseScraper {
   /**
    * Santa Rosa doesn't need a search step - we navigate directly to the property page
    */
-  protected async performSearch(page: Page, request: ScrapeRequest): Promise<void> {
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
@@ -142,25 +142,6 @@ export default class SantaRosaScraper extends BaseScraper {
       // Extract data using page.evaluate to run in browser context
       const data = await page.evaluate(() => {
         // Helper to decode HTML entities and preserve newlines
-        const htmlToText = (html: string): string => {
-          // Replace <br> tags with a unique marker
-          const withMarkers = html.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
-
-          // Create temporary element to decode HTML entities
-          const temp = document.createElement('div')
-          temp.innerHTML = withMarkers
-
-          // Get text content (automatically decodes &amp; etc.)
-          const decoded = temp.textContent || ''
-
-          // Split by marker, clean up, and rejoin
-          return decoded
-            .split('|||NEWLINE|||')
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
-            .join('\n')
-        }
-
         let ownerName = ''
         let mailingAddress = ''
 
@@ -224,7 +205,7 @@ export default class SantaRosaScraper extends BaseScraper {
         identifierType,
         scrapedAt: new Date().toISOString(),
       }
-    } catch (error) {
+    } catch (_error) {
       if (error instanceof ScraperError) {
         throw error
       }

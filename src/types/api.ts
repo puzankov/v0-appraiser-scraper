@@ -2,7 +2,7 @@
  * API request and response types
  */
 
-import { ScrapeRequest, ScrapeResult, CountyConfig } from './scraper'
+import { ScrapeRequest, ScrapeResult } from './scraper'
 
 // POST /api/scrape request body
 export interface ScrapeApiRequest extends ScrapeRequest {}

@@ -41,7 +41,7 @@ export async function getScraper(config: CountyConfig): Promise<BaseScraper> {
     // Cache and return
     scraperCache.set(config.id, scraper)
     return scraper
-  } catch (error) {
+  } catch (_error) {
     console.error(`Failed to load scraper for county '${config.id}':`, error)
     throw new ScraperError(
       ErrorCode.UNKNOWN_ERROR,

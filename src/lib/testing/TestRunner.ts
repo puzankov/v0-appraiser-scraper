@@ -146,7 +146,7 @@ export async function runTestCase(testCase: TestCase): Promise<TestResult> {
       executedAt,
       duration,
     }
-  } catch (error) {
+  } catch (_error) {
     const duration = Date.now() - startTime
 
     return {

@@ -78,7 +78,7 @@ export default class SarasotaScraper extends BaseScraper {
           duration,
         },
       }
-    } catch (error) {
+    } catch (_error) {
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
 
@@ -121,7 +121,7 @@ export default class SarasotaScraper extends BaseScraper {
   /**
    * Sarasota doesn't need a search step - we navigate directly to the property page
    */
-  protected async performSearch(page: Page, request: ScrapeRequest): Promise<void> {
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
@@ -148,7 +148,6 @@ export default class SarasotaScraper extends BaseScraper {
           const listItems = Array.from(resultList.querySelectorAll('li'))
 
           let inOwnership = false
-          let foundSitusAddress = false
 
           for (const li of listItems) {
             const text = li.textContent?.trim() || ''
@@ -168,7 +167,6 @@ export default class SarasotaScraper extends BaseScraper {
 
             // Check if this is the "Situs Address:" label
             if (text === 'Situs Address:') {
-              foundSitusAddress = true
               break
             }
 
@@ -222,7 +220,7 @@ export default class SarasotaScraper extends BaseScraper {
         identifierType,
         scrapedAt: new Date().toISOString(),
       }
-    } catch (error) {
+    } catch (_error) {
       if (error instanceof ScraperError) {
         throw error
       }
