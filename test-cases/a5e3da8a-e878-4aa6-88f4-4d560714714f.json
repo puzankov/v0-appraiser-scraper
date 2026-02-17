@@ -1,0 +1,12 @@
+{
+  "id": "a5e3da8a-e878-4aa6-88f4-4d560714714f",
+  "name": "marion_570842",
+  "countyId": "marion",
+  "identifierType": "parcelId",
+  "identifier": "570842",
+  "expectedOwnerName": "MUJICA CARLOS",
+  "expectedAddress": "396 NE 31ST AVE\nHOMESTEAD FL 33033-7270",
+  "description": "Marion County test case - owner and address in single td element",
+  "createdAt": "2026-02-16T00:00:00.000Z",
+  "updatedAt": "2026-02-16T00:00:00.000Z"
+}

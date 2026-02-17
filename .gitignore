@@ -33,7 +33,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# test cases
-/test-cases/*.json
+# test cases are now committed to repo
 
 /temp

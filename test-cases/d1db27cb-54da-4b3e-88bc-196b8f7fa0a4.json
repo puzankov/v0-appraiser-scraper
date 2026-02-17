@@ -1,0 +1,12 @@
+{
+  "id": "d1db27cb-54da-4b3e-88bc-196b8f7fa0a4",
+  "name": "duval_035697-0000",
+  "countyId": "duval",
+  "identifierType": "parcelId",
+  "identifier": "035697-0000",
+  "expectedOwnerName": "SCRUGGS LAVERNE E PONSELL ESTATE",
+  "expectedAddress": "7330 ELWOOD AVE\nJACKSONVILLE, FL 32208-3938",
+  "description": "Duval County test case - parcelId format requires hyphen removal for URL",
+  "createdAt": "2026-02-16T00:00:00.000Z",
+  "updatedAt": "2026-02-16T00:00:00.000Z"
+}

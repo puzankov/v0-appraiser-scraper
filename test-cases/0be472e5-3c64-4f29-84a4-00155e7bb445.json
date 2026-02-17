@@ -1,0 +1,12 @@
+{
+  "id": "0be472e5-3c64-4f29-84a4-00155e7bb445",
+  "name": "brevard_2823886",
+  "countyId": "brevard",
+  "identifierType": "parcelId",
+  "identifier": "2823886",
+  "expectedOwnerName": "ST MAXIMILIAN LLC",
+  "expectedAddress": "PO BOX 31140 SANTA BARBARA CA 93130",
+  "description": "Brevard County test case for parcel 2823886",
+  "createdAt": "2026-02-16T00:00:00.000Z",
+  "updatedAt": "2026-02-16T00:00:00.000Z"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "4c127ccf-1c82-4ee4-92b4-b3a75cd2c608",
+  "name": "citrus_1480302",
+  "countyId": "citrus",
+  "identifierType": "parcelId",
+  "identifier": "1480302",
+  "expectedOwnerName": "LAKEVIEW LOAN SERVICING LLC",
+  "expectedAddress": "800 STATE HWY 121 BYP\nLEWISVILLE TX 75067",
+  "description": "Citrus County test case with multi-line address",
+  "createdAt": "2026-02-16T00:00:00.000Z",
+  "updatedAt": "2026-02-16T00:00:00.000Z"
+}
