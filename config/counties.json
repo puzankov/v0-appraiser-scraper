@@ -352,13 +352,13 @@
       "id": "manatee",
       "name": "Manatee County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.manateepao.gov",
+      "searchUrl": "https://www.manateepao.gov/parcel/",
       "identifierTypes": ["parcelId"],
       "scraperModule": "manatee",
       "selectors": {},
-      "timeout": 30000,
-      "enabled": false
+      "timeout": 60000,
+      "enabled": true
     },
     "marion": {
       "id": "marion",
