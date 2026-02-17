@@ -26,10 +26,17 @@ export async function createBrowser(config: BrowserConfig = {}): Promise<Browser
       // Production environment (Vercel)
       console.log('Creating browser for Vercel environment')
 
+      // Set graphics mode to false to avoid missing library dependencies
+      chromium.setGraphicsMode = false
+
       const browser = await puppeteer.launch({
-        args: chromium.args,
+        args: [
+          ...chromium.args,
+          '--disable-software-rasterizer',
+          '--disable-dev-shm-usage',
+        ],
         defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
+        executablePath: await chromium.executablePath('/tmp'),
         headless: chromium.headless,
         ignoreHTTPSErrors: true,
       })
