@@ -13,8 +13,9 @@ import { ScraperError, ErrorCode } from '@/lib/scrapers/utils/errors'
 import { ZodError } from 'zod'
 import { validateApiKey, createUnauthorizedResponse } from '@/lib/api/auth'
 
+export const runtime = 'nodejs' // Must be nodejs, not edge
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60 // Vercel function timeout
+export const maxDuration = 60 // Vercel function timeout (300 for Pro plan)
 
 /**
  * POST /api/scrape

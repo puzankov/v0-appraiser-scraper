@@ -1,12 +1,12 @@
 /**
  * Browser automation utility with Vercel compatibility
+ * Uses chromium-min for serverless (downloads at runtime) and puppeteer for local dev
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer-core'
-import chromium from '@sparticuz/chromium'
+import { Browser, Page } from 'puppeteer-core'
 
-// Detect if running on Vercel (production) or local
-const isVercel = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME
+// Detect if running on Vercel/production
+const isProduction = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
 
 // Browser configuration
 interface BrowserConfig {
@@ -16,55 +16,65 @@ interface BrowserConfig {
 
 /**
  * Create a Puppeteer browser instance
- * Uses @sparticuz/chromium on Vercel, local Chromium otherwise
+ * Production: Uses chromium-min (downloads Chromium binary at runtime from GitHub)
+ * Local: Uses regular puppeteer with bundled Chromium
  */
 export async function createBrowser(config: BrowserConfig = {}): Promise<Browser> {
-  const { headless = true, timeout = 30000 } = config
+  const { headless = true } = config
 
   try {
-    if (isVercel) {
-      // Production environment (Vercel)
-      console.log('Creating browser for Vercel environment')
+    let puppeteer: any
+    let executablePath: string | undefined
+    let chromiumArgs: string[] = []
+    let chromiumInstance: any = null
 
-      // Set graphics mode to false to avoid missing library dependencies
-      chromium.setGraphicsMode = false
+    if (isProduction) {
+      // Production: Use puppeteer-core + chromium-min
+      console.log('Creating browser for Vercel environment with chromium-min')
 
-      const browser = await puppeteer.launch({
-        args: [
-          ...chromium.args,
-          '--disable-software-rasterizer',
-          '--disable-dev-shm-usage',
-        ],
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath('/tmp'),
-        headless: chromium.headless,
-        ignoreHTTPSErrors: true,
-      })
+      puppeteer = await import('puppeteer-core')
+      chromiumInstance = await import('@sparticuz/chromium-min')
 
-      return browser
+      // Downloads Chromium binary from GitHub releases at runtime
+      executablePath = await chromiumInstance.default.executablePath(
+        'https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.x64.tar'
+      )
+      chromiumArgs = chromiumInstance.default.args
     } else {
-      // Local development environment
+      // Local dev: Use regular puppeteer with bundled Chromium
       console.log('Creating browser for local environment')
-
-      // Try to find local Chrome/Chromium installation
-      const browser = await puppeteer.launch({
-        headless,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-gpu',
-          '--window-size=1920x1080',
-        ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
-                       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        ignoreHTTPSErrors: true,
-        timeout,
-      })
-
-      return browser
+      try {
+        puppeteer = await import('puppeteer')
+      } catch {
+        puppeteer = await import('puppeteer-core')
+      }
     }
+
+    const launchOptions = isProduction && chromiumInstance
+      ? {
+          args: chromiumArgs,
+          defaultViewport: chromiumInstance.default.defaultViewport,
+          executablePath: executablePath,
+          headless: chromiumInstance.default.headless,
+          ignoreHTTPSErrors: true,
+        }
+      : {
+          headless,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--window-size=1920,1080',
+          ],
+          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
+                         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          ignoreHTTPSErrors: true,
+        }
+
+    const browser = await puppeteer.default.launch(launchOptions)
+    return browser
   } catch (error) {
     console.error('Failed to launch browser:', error)
     throw new Error(`Browser launch failed: ${error instanceof Error ? error.message : String(error)}`)

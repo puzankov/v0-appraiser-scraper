@@ -6,7 +6,7 @@ const nextConfig = {
   },
   // Externalize Puppeteer packages for Vercel serverless functions
   experimental: {
-    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
+    serverComponentsExternalPackages: ['puppeteer-core', 'puppeteer', '@sparticuz/chromium-min'],
   },
 }
 
