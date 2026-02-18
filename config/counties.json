@@ -460,13 +460,13 @@
       "id": "osceola",
       "name": "Osceola County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://search.property-appraiser.org",
+      "searchUrl": "https://search.property-appraiser.org/Search",
       "identifierTypes": ["parcelId"],
       "scraperModule": "osceola",
       "selectors": {},
-      "timeout": 30000,
-      "enabled": false
+      "timeout": 120000,
+      "enabled": true
     },
     "palmbeach": {
       "id": "palmbeach",
