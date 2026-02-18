@@ -520,13 +520,13 @@
       "id": "putnam",
       "name": "Putnam County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://apps.putnam-fl.com",
+      "searchUrl": "https://apps.putnam-fl.com/pa/property/",
       "identifierTypes": ["parcelId"],
       "scraperModule": "putnam",
       "selectors": {},
-      "timeout": 30000,
-      "enabled": false
+      "timeout": 120000,
+      "enabled": true
     },
     "sarasota": {
       "id": "sarasota",
