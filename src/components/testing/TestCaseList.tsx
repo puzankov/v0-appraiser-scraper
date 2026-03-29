@@ -7,7 +7,9 @@
 import React, { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { TestCase } from '@/types/test'
+import { TestCase, TestResult } from '@/types/test'
+
+type TestStatus = 'idle' | 'running' | 'passed' | 'failed'
 
 interface TestCaseListProps {
   refreshTrigger: number
@@ -18,13 +20,17 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [loading, setLoading] = useState(false)
   const [runningAll, setRunningAll] = useState(false)
+  const [testStatuses, setTestStatuses] = useState<Record<string, TestStatus>>({})
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>({})
+  const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set())
+  const [summary, setSummary] = useState<{ passed: number; failed: number } | null>(null)
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
 
   const loadTestCases = async () => {
     try {
       const response = await fetch('/api/test-cases')
       if (response.ok) {
         const data = await response.json()
-        // Sort test cases by name (case-insensitive)
         const sorted = (data.testCases || []).sort((a: TestCase, b: TestCase) => {
           return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
         })
@@ -81,31 +87,223 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
 
   const handleRunAll = async () => {
     setRunningAll(true)
+    setSummary(null)
+
+    // Reset all statuses
+    const initial: Record<string, TestStatus> = {}
+    for (const tc of testCases) initial[tc.id] = 'idle'
+    setTestStatuses(initial)
+    setTestResults({})
+    setExpandedErrors(new Set())
+
+    let passed = 0
+    let failed = 0
+
+    const BATCH_SIZE = 3
+
+    const runOne = async (testCase: TestCase) => {
+      setTestStatuses((prev) => ({ ...prev, [testCase.id]: 'running' }))
+      try {
+        const response = await fetch(`/api/test-cases/${testCase.id}?run=true`)
+        if (response.ok) {
+          const result: TestResult = await response.json()
+          setTestResults((prev) => ({ ...prev, [testCase.id]: result }))
+          if (result.passed) {
+            setTestStatuses((prev) => ({ ...prev, [testCase.id]: 'passed' }))
+            passed++
+          } else {
+            setTestStatuses((prev) => ({ ...prev, [testCase.id]: 'failed' }))
+            setExpandedErrors((prev) => new Set(prev).add(testCase.id))
+            failed++
+          }
+        } else {
+          setTestStatuses((prev) => ({ ...prev, [testCase.id]: 'failed' }))
+          failed++
+        }
+      } catch {
+        setTestStatuses((prev) => ({ ...prev, [testCase.id]: 'failed' }))
+        failed++
+      }
+    }
+
+    for (let i = 0; i < testCases.length; i += BATCH_SIZE) {
+      await Promise.all(testCases.slice(i, i + BATCH_SIZE).map(runOne))
+    }
+
+    setSummary({ passed, failed })
+    setRunningAll(false)
+  }
+
+  const handleUpdateExpected = async (id: string) => {
+    const result = testResults[id]
+    const testCase = testCases.find((tc) => tc.id === id)
+    if (!result || !testCase) return
+
+    const ownerAssertion = result.assertions.find((a) => a.field === 'ownerName')
+    const addressAssertion = result.assertions.find((a) => a.field === 'mailingAddress')
+    const newOwnerName = ownerAssertion?.actual || testCase.expectedOwnerName
+    const newAddress = addressAssertion?.actual || testCase.expectedAddress
+
+    setUpdatingIds((prev) => new Set(prev).add(id))
 
     try {
-      const response = await fetch('/api/test-cases?run=true')
+      const response = await fetch(`/api/test-cases/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: testCase.name,
+          countyId: testCase.countyId,
+          identifierType: testCase.identifierType,
+          identifier: testCase.identifier,
+          expectedOwnerName: newOwnerName,
+          expectedAddress: newAddress,
+          description: testCase.description,
+          tags: testCase.tags,
+        }),
+      })
+
       if (response.ok) {
-        const batchResult = await response.json()
-        alert(
-          `Batch test completed:\n${batchResult.passedTests} passed, ${batchResult.failedTests} failed`
+        const { testCase: updated } = await response.json()
+        setTestCases((prev) => prev.map((tc) => (tc.id === id ? updated : tc)))
+        setTestStatuses((prev) => ({ ...prev, [id]: 'idle' }))
+        setExpandedErrors((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+        setSummary((prev) =>
+          prev ? { passed: prev.passed + 1, failed: prev.failed - 1 } : null
         )
       } else {
-        alert('Failed to run all tests')
+        alert('Failed to update test case')
       }
-    } catch (error) {
-      console.error('Run all failed:', error)
-      alert('Run all failed')
+    } catch {
+      alert('Failed to update test case')
     } finally {
-      setRunningAll(false)
+      setUpdatingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
     }
+  }
+
+  const toggleExpanded = (id: string) => {
+    setExpandedErrors((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const renderStatusIcon = (id: string) => {
+    const status = testStatuses[id]
+    if (!status || status === 'idle') return null
+
+    if (status === 'running') {
+      return (
+        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+      )
+    }
+
+    if (status === 'passed') {
+      return (
+        <span className="text-green-600 text-lg leading-none flex-shrink-0" title="Passed">
+          ✓
+        </span>
+      )
+    }
+
+    if (status === 'failed') {
+      return (
+        <button
+          onClick={() => toggleExpanded(id)}
+          className="text-red-600 text-lg leading-none flex-shrink-0 hover:text-red-800"
+          title="Failed — click to see details"
+        >
+          ✗
+        </button>
+      )
+    }
+
+    return null
+  }
+
+  const renderErrorDetails = (id: string) => {
+    if (!expandedErrors.has(id)) return null
+    const result = testResults[id]
+    if (!result) return null
+
+    const isDataMismatch = result.scrapeResult.success && result.assertions.length > 0
+    const isUpdating = updatingIds.has(id)
+
+    return (
+      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm">
+        {result.error && (
+          <p className="text-red-800 font-medium mb-2">{result.error}</p>
+        )}
+        {result.assertions && result.assertions.length > 0 && (
+          <div className="space-y-2">
+            {result.assertions.map((assertion, i) => (
+              <div key={i} className={assertion.passed ? 'opacity-50' : ''}>
+                <div className="flex items-center gap-2">
+                  <span className={assertion.passed ? 'text-green-600' : 'text-red-600'}>
+                    {assertion.passed ? '✓' : '✗'}
+                  </span>
+                  <span className="font-medium text-gray-700">{assertion.field}</span>
+                  {assertion.similarity !== undefined && (
+                    <span className="text-gray-400 text-xs">
+                      {Math.round(assertion.similarity * 100)}% match
+                    </span>
+                  )}
+                </div>
+                {!assertion.passed && (
+                  <div className="ml-5 mt-1 space-y-1 font-mono text-xs">
+                    <div>
+                      <span className="text-gray-500">expected: </span>
+                      <span className="text-gray-900">{assertion.expected || '(empty)'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">actual:   </span>
+                      <span className="text-red-700">{assertion.actual || '(empty)'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {isDataMismatch && (
+          <div className="mt-3 pt-3 border-t border-red-200">
+            <button
+              onClick={() => handleUpdateExpected(id)}
+              disabled={isUpdating}
+              className="text-xs px-3 py-1.5 rounded bg-white border border-red-300 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isUpdating ? 'Updating...' : 'Update expected values to current'}
+            </button>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
     <Card title="Saved Test Cases">
       <div className="mb-4 flex justify-between items-center">
-        <p className="text-sm text-gray-600">
-          {testCases.length} test case{testCases.length !== 1 ? 's' : ''}
-        </p>
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-gray-600">
+            {testCases.length} test case{testCases.length !== 1 ? 's' : ''}
+          </p>
+          {summary && (
+            <p className="text-sm">
+              <span className="text-green-600 font-medium">{summary.passed} passed</span>
+              <span className="text-gray-400 mx-1">·</span>
+              <span className="text-red-600 font-medium">{summary.failed} failed</span>
+            </p>
+          )}
+        </div>
         {testCases.length > 0 && (
           <Button
             size="sm"
@@ -113,7 +311,7 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
             onClick={handleRunAll}
             disabled={runningAll}
           >
-            {runningAll ? 'Running All...' : 'Run All Tests'}
+            {runningAll ? 'Running...' : 'Run All Tests'}
           </Button>
         )}
       </div>
@@ -125,21 +323,32 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
           {testCases.map((testCase) => (
             <div
               key={testCase.id}
-              className="p-4 border border-gray-200 rounded hover:border-gray-300 transition-colors"
+              className={`p-4 border rounded transition-colors ${
+                testStatuses[testCase.id] === 'passed'
+                  ? 'border-green-200 bg-green-50'
+                  : testStatuses[testCase.id] === 'failed'
+                  ? 'border-red-200 bg-red-50'
+                  : testStatuses[testCase.id] === 'running'
+                  ? 'border-blue-200 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
             >
               <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-medium text-gray-900">{testCase.name}</h4>
-                  <p className="text-sm text-gray-600">
-                    {testCase.countyId} • {testCase.identifierType}: {testCase.identifier}
-                  </p>
+                <div className="flex items-center gap-3 min-w-0">
+                  {renderStatusIcon(testCase.id)}
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-gray-900">{testCase.name}</h4>
+                    <p className="text-sm text-gray-600">
+                      {testCase.countyId} • {testCase.identifierType}: {testCase.identifier}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0 ml-3">
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={() => handleRun(testCase.id)}
-                    disabled={loading}
+                    disabled={loading || runningAll}
                   >
                     Run
                   </Button>
@@ -147,6 +356,7 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
                     size="sm"
                     variant="danger"
                     onClick={() => handleDelete(testCase.id)}
+                    disabled={runningAll}
                   >
                     Delete
                   </Button>
@@ -155,6 +365,7 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
               {testCase.description && (
                 <p className="text-sm text-gray-500 mt-2">{testCase.description}</p>
               )}
+              {renderErrorDetails(testCase.id)}
             </div>
           ))}
         </div>

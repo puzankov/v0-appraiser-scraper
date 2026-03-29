@@ -4,9 +4,9 @@
   "countyId": "citrus",
   "identifierType": "parcelId",
   "identifier": "1480302",
-  "expectedOwnerName": "LAKEVIEW LOAN SERVICING LLC",
-  "expectedAddress": "800 STATE HWY 121 BYP\nLEWISVILLE TX 75067",
+  "expectedOwnerName": "SECRETARY OF VETERANS AFFAIRS",
+  "expectedAddress": "3401 W END AVE STE 760W\nNASHVILLE TN 37203",
   "description": "Citrus County test case with multi-line address",
   "createdAt": "2026-02-16T00:00:00.000Z",
-  "updatedAt": "2026-02-16T00:00:00.000Z"
+  "updatedAt": "2026-03-29T17:40:35.061Z"
 }

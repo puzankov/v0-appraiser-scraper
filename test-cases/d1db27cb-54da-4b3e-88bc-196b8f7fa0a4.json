@@ -4,9 +4,9 @@
   "countyId": "duval",
   "identifierType": "parcelId",
   "identifier": "035697-0000",
-  "expectedOwnerName": "SCRUGGS LAVERNE E PONSELL ESTATE",
-  "expectedAddress": "7330 ELWOOD AVE\nJACKSONVILLE, FL 32208-3938",
+  "expectedOwnerName": "GITSIT REAL PROPERTY BBPLC1 LLC",
+  "expectedAddress": "333 S ANITA DR STE 400\nORANGE, CA 92868-3314",
   "description": "Duval County test case - parcelId format requires hyphen removal for URL",
   "createdAt": "2026-02-16T00:00:00.000Z",
-  "updatedAt": "2026-02-16T00:00:00.000Z"
+  "updatedAt": "2026-03-29T17:40:38.983Z"
 }
