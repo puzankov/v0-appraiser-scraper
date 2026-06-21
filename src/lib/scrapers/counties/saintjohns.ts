@@ -55,7 +55,7 @@ export default class StJohnsScraper extends BaseScraper {
 
       // Wait for content to load
       console.log(`[${this.config.id}] Waiting for property data...`)
-      await page.waitForSelector('[id*="sprPrimaryOwnerName"]', { timeout: this.config.timeout || 10000 })
+      await page.waitForSelector('[id$="_lblOwnerAddress"]', { timeout: this.config.timeout || 10000 })
 
       // Extract property data
       console.log(`[${this.config.id}] Extracting property data...`)
@@ -127,10 +127,11 @@ export default class StJohnsScraper extends BaseScraper {
   }
 
   /**
-   * Extract property data from St. Johns property details page
-   * Same qpublic.schneidercorp.com structure as Flagler County.
-   * Owner name + any continuation lines come from sprPrimaryOwnerName/sprPrimaryOwnerAddress;
-   * address lines are those that start with a street number.
+   * Extract property data from St. Johns property details page.
+   * St. Johns uses the newer qpublic template: an rptOwner repeater where each
+   * owner block exposes the name in [...sprOwnerName1...lblSearch] (sprOwnerName2 is
+   * the ownership percentage, not a name) and the mailing address in [...lblOwnerAddress].
+   * The same mailing address is repeated per owner, so addresses are de-duplicated.
    */
   protected async extractPropertyData(
     page: Page,
@@ -141,19 +142,12 @@ export default class StJohnsScraper extends BaseScraper {
     try {
       // Extract data using page.evaluate to run in browser context
       const data = await page.evaluate(() => {
-        // Helper to decode HTML entities and preserve newlines
+        // Convert address innerHTML (with <br>) into newline-joined, decoded text
         const htmlToText = (html: string): string => {
-          // Replace <br> tags (case insensitive) with a unique marker
           const withMarkers = html.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
-
-          // Create temporary element to decode HTML entities
           const temp = document.createElement('div')
           temp.innerHTML = withMarkers
-
-          // Get text content (automatically decodes &amp; etc.)
           const decoded = temp.textContent || ''
-
-          // Split by marker, clean up, and rejoin
           return decoded
             .split('|||NEWLINE|||')
             .map(line => line.trim())
@@ -161,54 +155,35 @@ export default class StJohnsScraper extends BaseScraper {
             .join('\n')
         }
 
-        let ownerName = ''
-        let mailingAddress = ''
+        const ownerNames: string[] = []
+        const addresses: string[] = []
 
-        // Find elements (span or a) with IDs containing "sprPrimaryOwnerName"
-        // The owner name can be in either a <span> or an <a> tag
-        const allElements = Array.from(document.querySelectorAll('[id*="sprPrimaryOwnerName"]'))
+        // Each owner block is anchored by its mailing-address element
+        const addressEls = Array.from(document.querySelectorAll('[id$="_lblOwnerAddress"]'))
 
-        for (const element of allElements) {
-          const elementId = element.id || ''
+        for (const addrEl of addressEls) {
+          const prefix = addrEl.id.replace(/_lblOwnerAddress$/, '')
 
-          if (elementId.includes('sprPrimaryOwnerName')) {
-            // This is the primary owner name
-            const nameText = element.textContent?.trim() || ''
-            if (nameText) {
-              ownerName = nameText
-            }
+          // Owner name lives in the suppressed search label under sprOwnerName1
+          const nameEl = document.querySelector(`[id^="${prefix}_sprOwnerName1"][id$="lblSearch"]`)
+          const ownerName = nameEl?.textContent?.trim() || ''
+          if (ownerName) {
+            ownerNames.push(ownerName)
+          }
 
-            // Look for the address span (next span with sprPrimaryOwnerAddress)
-            const addressSpans = Array.from(document.querySelectorAll('span[id*="sprPrimaryOwnerAddress"]'))
-            if (addressSpans.length > 0) {
-              const addressSpan = addressSpans[0]
-              const fullText = htmlToText(addressSpan.innerHTML)
-              const lines = fullText.split('\n')
-
-              // Separate owner continuation from address
-              const ownerParts: string[] = [ownerName]
-              const addressParts: string[] = []
-
-              for (const line of lines) {
-                // If line starts with a number or contains street/city keywords, it's part of address
-                if (/^\d+/.test(line) || /^[A-Z][a-z]+ [A-Z]{2} \d{5}/.test(line) || addressParts.length > 0) {
-                  addressParts.push(line)
-                } else {
-                  // This is still part of owner info (like a second owner name)
-                  ownerParts.push(line)
-                }
-              }
-
-              ownerName = ownerParts.join('\n')
-              mailingAddress = addressParts.join('\n')
-            }
-            break
+          const address = htmlToText(addrEl.innerHTML)
+          if (address) {
+            addresses.push(address)
           }
         }
 
+        // Merge owners; de-duplicate the (repeated) mailing address
+        const mergedOwners = ownerNames.join('\n')
+        const mergedAddress = [...new Set(addresses)].join('\n')
+
         return {
-          ownerName,
-          mailingAddress
+          ownerName: mergedOwners,
+          mailingAddress: mergedAddress,
         }
       })
 
