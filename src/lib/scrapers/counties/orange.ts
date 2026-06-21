@@ -1,7 +1,14 @@
 /**
- * Charlotte County Property Appraiser Scraper
- * URL Pattern: https://www.ccappraiser.com/Show_parcel.asp?acct={parcelId}&gen=T&tax=T&bld=T&oth=T&sal=T&lnd=T&leg=T
- * Note: Owner and address are in the same div, separated by <br> tags
+ * Orange County Property Appraiser Scraper
+ * User-facing site: https://ocpaweb.ocpafl.org/parcelsearch/Parcel%20ID/{parcelId} (Angular SPA)
+ *
+ * The SPA loads parcel data from an encrypted Azure API, which is impractical to
+ * scrape directly. Instead we hit the server-rendered "printer friendly" record,
+ * which returns the full owner/address data as static HTML:
+ *   https://ocpaservices.ocpafl.org/Searches/ParcelInfoPrinterFriendly.aspx/PDF/False/PID/{parcelId}
+ *
+ * Note: that page gates a #view div behind reCAPTCHA via `display:none`, but the
+ * data is present in the HTML regardless, so we extract via textContent (not innerText).
  */
 
 import { Page } from 'puppeteer-core'
@@ -9,28 +16,31 @@ import { BaseScraper } from '../base/BaseScraper'
 import { ScrapeRequest, PropertyOwnerData } from '@/types/scraper'
 import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
-export default class CharlotteScraper extends BaseScraper {
+export default class OrangeScraper extends BaseScraper {
   /**
-   * Charlotte uses direct URL navigation with acct parameter and multiple flags
+   * Orange navigates directly to the printer-friendly record by PID
    */
   protected async navigateToSearch(page: Page, request?: ScrapeRequest): Promise<void> {
     if (!request) {
       throw new ScraperError(
         ErrorCode.VALIDATION_ERROR,
-        'Request is required for Charlotte County navigation',
+        'Request is required for Orange County navigation',
         undefined,
         this.config.id
       )
     }
 
-    const url = `${this.config.searchUrl}?acct=${encodeURIComponent(request.identifier)}&gen=T&tax=T&bld=T&oth=T&sal=T&lnd=T&leg=T`
+    const url = `${this.config.searchUrl}/PDF/False/PID/${encodeURIComponent(request.identifier)}`
 
     console.log(`[${this.config.id}] Navigating to: ${url}`)
 
     await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: this.config.timeout || 30000,
+      waitUntil: 'domcontentloaded',
+      timeout: this.config.timeout || 60000,
     })
+
+    // The record fieldsets are server-rendered; wait until they're present
+    await page.waitForSelector('fieldset legend', { timeout: this.config.timeout || 60000 })
   }
 
   /**
@@ -46,15 +56,14 @@ export default class CharlotteScraper extends BaseScraper {
       console.log(`[${this.config.id}] Setting up browser...`)
       browser = await this.setupBrowser()
 
-      const { createPage } = await import('../utils/browser')
-      const page = await createPage(browser)
+      const page = await browser.newPage()
+      await page.setViewport({ width: 1920, height: 1080 })
+      await page.setUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      )
 
-      // Navigate directly to property page
+      // Navigate directly to the printer-friendly record
       await this.navigateToSearch(page, request)
-
-      // Wait for content to load
-      console.log(`[${this.config.id}] Waiting for property data...`)
-      await page.waitForSelector('h2', { timeout: this.config.timeout || 10000 })
 
       // Extract property data
       console.log(`[${this.config.id}] Extracting property data...`)
@@ -119,15 +128,15 @@ export default class CharlotteScraper extends BaseScraper {
   }
 
   /**
-   * Charlotte doesn't need a search step - we navigate directly to the property page
+   * Orange doesn't need a separate search step - navigation handles it
    */
   protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
     // No search needed - navigation handles everything
   }
 
   /**
-   * Extract property data from Charlotte property details page
-   * Owner and address are in the same div after "Owner:" h2
+   * Extract property data from the Orange printer-friendly record.
+   * Owner sits under <legend>Names</legend>; address under <legend>Mailing Address</legend>.
    */
   protected async extractPropertyData(
     page: Page,
@@ -136,74 +145,47 @@ export default class CharlotteScraper extends BaseScraper {
     const { identifier, identifierType } = request
 
     try {
-      // Extract data using page.evaluate to run in browser context
       const data = await page.evaluate(() => {
-        // Helper to decode HTML entities and preserve newlines
-        const htmlToText = (html: string): string => {
-          // Replace <br> tags with a unique marker
-          const withMarkers = html.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
-
-          // Create temporary element to decode HTML entities
+        // Convert a fieldset's value HTML into trimmed, non-empty lines.
+        // Uses textContent so it works even though the data lives inside a
+        // display:none #view div (innerText would return nothing).
+        const htmlToLines = (html: string): string[] => {
+          const withMarkers = html.replace(/<br\s*\/?>/gi, '|||NL|||')
           const temp = document.createElement('div')
           temp.innerHTML = withMarkers
-
-          // Get text content (automatically decodes &amp; etc.)
           const decoded = temp.textContent || ''
-
-          // Split by marker, clean up, and rejoin
           return decoded
-            .split('|||NEWLINE|||')
+            .split('|||NL|||')
             .map(line => line.trim())
             .filter(line => line.length > 0)
-            .join('\n')
         }
 
-        let ownerName = ''
-        let mailingAddress = ''
-
-        // Find the h2 with text "Owner:"
-        const allH2s = Array.from(document.querySelectorAll('h2'))
-
-        for (const h2 of allH2s) {
-          const text = h2.textContent?.trim() || ''
-
-          if (text === 'Owner:') {
-            // Get the parent container
-            const parent = h2.parentElement
-            if (parent) {
-              // Find the div with class "w3-border w3-border-blue" that's a sibling
-              const ownerDiv = parent.querySelector('div.w3-border.w3-border-blue')
-              if (ownerDiv) {
-                // Extract and split the content
-                const fullText = htmlToText(ownerDiv.innerHTML)
-                const lines = fullText.split('\n')
-
-                if (lines.length > 0) {
-                  // First line is owner name
-                  ownerName = lines[0]
-
-                  // Rest is mailing address (exclude UI noise like "Online Address Change")
-                  if (lines.length > 1) {
-                    mailingAddress = lines
-                      .slice(1)
-                      .filter(line => !/online address change/i.test(line))
-                      .join('\n')
-                  }
-                }
-              }
+        // Return the value lines of the first fieldset whose legend matches.
+        const fieldsetLines = (labels: string[]): string[] => {
+          const fieldsets = Array.from(document.querySelectorAll('fieldset'))
+          for (const fs of fieldsets) {
+            const legend = fs.querySelector('legend')
+            const label = legend?.textContent?.trim().toLowerCase() || ''
+            if (labels.includes(label)) {
+              const clone = fs.cloneNode(true) as HTMLElement
+              const lg = clone.querySelector('legend')
+              if (lg) lg.remove()
+              return htmlToLines(clone.innerHTML)
             }
-            break
           }
+          return []
         }
+
+        const ownerNames = fieldsetLines(['names', 'name(s)', 'owner', 'owners'])
+        const mailingLines = fieldsetLines(['mailing address'])
 
         return {
-          ownerName,
-          mailingAddress
+          ownerNames,
+          mailingAddress: mailingLines.join('\n'),
         }
       })
 
-      // Check if we found the required data
-      if (!data.ownerName) {
+      if (!data.ownerNames || data.ownerNames.length === 0) {
         throw createNoResultsError(this.config.id, identifier)
       }
 
@@ -217,9 +199,12 @@ export default class CharlotteScraper extends BaseScraper {
         )
       }
 
-      // Return the structured data
+      console.log(`[${this.config.id}] Successfully extracted data`)
+      console.log(`[${this.config.id}] Owner: ${data.ownerNames.join(', ')}`)
+      console.log(`[${this.config.id}] Address: ${data.mailingAddress}`)
+
       return {
-        ownerNames: [data.ownerName],
+        ownerNames: data.ownerNames,
         mailingAddress: data.mailingAddress,
         countyId: this.config.id,
         identifier,

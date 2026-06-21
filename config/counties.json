@@ -6,11 +6,14 @@
       "state": "FL",
       "appraiserUrl": "https://qpublic.schneidercorp.com",
       "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx?AppID=1081&LayerID=26490&PageTypeID=4&PageID=10770&Q=320373606",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "alachua",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://qpublic.schneidercorp.com/Application.aspx?AppID=1081&LayerID=26490&PageTypeID=4&PageID=10770&Q=320373606&KeyValue={ID}"
     },
     "baker": {
       "id": "baker",
@@ -18,7 +21,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "baker",
       "selectors": {},
       "timeout": 30000,
@@ -30,7 +35,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "bay",
       "selectors": {},
       "timeout": 30000,
@@ -42,7 +49,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "bradford",
       "selectors": {},
       "timeout": 30000,
@@ -54,11 +63,14 @@
       "state": "FL",
       "appraiserUrl": "https://www.bcpao.us/PropertySearch",
       "searchUrl": "https://www.bcpao.us/PropertySearch/",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "brevard",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.bcpao.us/PropertySearch/#/parcel/{ID}"
     },
     "broward": {
       "id": "broward",
@@ -66,11 +78,14 @@
       "state": "FL",
       "appraiserUrl": "https://bcpa.net",
       "searchUrl": "https://bcpa.net/RecInfo.asp",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "broward",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://bcpa.net/RecInfo.asp?URL_Folio={ID}"
     },
     "calhoun": {
       "id": "calhoun",
@@ -78,7 +93,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "calhoun",
       "selectors": {},
       "timeout": 30000,
@@ -90,11 +107,14 @@
       "state": "FL",
       "appraiserUrl": "https://www.ccappraiser.com",
       "searchUrl": "https://www.ccappraiser.com/Show_parcel.asp",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "charlotte",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.ccappraiser.com/Show_parcel.asp?acct={ID}&gen=T&tax=T&bld=T&oth=T&sal=T&lnd=T&leg=T"
     },
     "citrus": {
       "id": "citrus",
@@ -102,11 +122,14 @@
       "state": "FL",
       "appraiserUrl": "https://www.citruspa.org",
       "searchUrl": "https://www.citruspa.org/_Web/datalets/datalet.aspx",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "citrus",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.citruspa.org/_Web/datalets/datalet.aspx?mode=profileall&UseSearch=no&pin={ID}&jur=19&LMparent=20"
     },
     "clay": {
       "id": "clay",
@@ -114,11 +137,14 @@
       "state": "FL",
       "appraiserUrl": "https://qpublic.schneidercorp.com",
       "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "clay",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://qpublic.schneidercorp.com/Application.aspx?AppID=830&LayerID=15008&PageTypeID=4&PageID=6756&KeyValue={ID}"
     },
     "collier": {
       "id": "collier",
@@ -126,7 +152,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "collier",
       "selectors": {},
       "timeout": 30000,
@@ -138,7 +166,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "columbia",
       "selectors": {},
       "timeout": 30000,
@@ -150,7 +180,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "desoto",
       "selectors": {},
       "timeout": 30000,
@@ -162,11 +194,14 @@
       "state": "FL",
       "appraiserUrl": "https://paopropertysearch.coj.net",
       "searchUrl": "https://paopropertysearch.coj.net/Basic/Detail.aspx",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "duval",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://paopropertysearch.coj.net/Basic/Detail.aspx?RE={ID}"
     },
     "escambia": {
       "id": "escambia",
@@ -174,11 +209,14 @@
       "state": "FL",
       "appraiserUrl": "https://www.escpa.org",
       "searchUrl": "https://www.escpa.org/cama/Detail_a.aspx",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "escambia",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.escpa.org/cama/Detail_a.aspx?s={ID}"
     },
     "flagler": {
       "id": "flagler",
@@ -186,11 +224,14 @@
       "state": "FL",
       "appraiserUrl": "https://qpublic.schneidercorp.com",
       "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx?AppID=598&LayerID=9801&PageTypeID=4&PageID=4330&Q=1544474436",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "flagler",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://qpublic.schneidercorp.com/Application.aspx?AppID=598&LayerID=9801&PageTypeID=4&PageID=4330&Q=1544474436&KeyValue={ID}"
     },
     "gilchrist": {
       "id": "gilchrist",
@@ -198,7 +239,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "gilchrist",
       "selectors": {},
       "timeout": 30000,
@@ -210,7 +253,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "glades",
       "selectors": {},
       "timeout": 30000,
@@ -222,7 +267,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "gulf",
       "selectors": {},
       "timeout": 30000,
@@ -234,7 +281,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "hardee",
       "selectors": {},
       "timeout": 30000,
@@ -246,7 +295,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "hernando",
       "selectors": {},
       "timeout": 30000,
@@ -258,7 +309,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "highlands",
       "selectors": {},
       "timeout": 30000,
@@ -270,11 +323,14 @@
       "state": "FL",
       "appraiserUrl": "https://gis.hcpafl.org/PropertySearch",
       "searchUrl": "https://gis.hcpafl.org/PropertySearch/",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "hillsborough",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://gis.hcpafl.org/PropertySearch/#/parcel/basic/{ID}"
     },
     "indian-river": {
       "id": "indian-river",
@@ -282,7 +338,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "indian-river",
       "selectors": {},
       "timeout": 30000,
@@ -294,11 +352,14 @@
       "state": "FL",
       "appraiserUrl": "https://lakecopropappr.com",
       "searchUrl": "https://lakecopropappr.com/property-details.aspx",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "lake",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://lakecopropappr.com/property-details.aspx?ParcelID={ID}"
     },
     "lee": {
       "id": "lee",
@@ -306,11 +367,14 @@
       "state": "FL",
       "appraiserUrl": "http://www.leepa.org",
       "searchUrl": "http://www.leepa.org/Scripts/PropertyQuery/PropertyQuery.aspx",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "lee",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "http://www.leepa.org/Scripts/PropertyQuery/PropertyQuery.aspx?STRAP={ID}"
     },
     "leon": {
       "id": "leon",
@@ -318,7 +382,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "leon",
       "selectors": {},
       "timeout": 30000,
@@ -330,7 +396,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "levy",
       "selectors": {},
       "timeout": 30000,
@@ -342,7 +410,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "madison",
       "selectors": {},
       "timeout": 30000,
@@ -354,11 +424,14 @@
       "state": "FL",
       "appraiserUrl": "https://www.manateepao.gov",
       "searchUrl": "https://www.manateepao.gov/parcel/",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "manatee",
       "selectors": {},
       "timeout": 60000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.manateepao.gov/parcel/?parid={ID}"
     },
     "marion": {
       "id": "marion",
@@ -366,11 +439,14 @@
       "state": "FL",
       "appraiserUrl": "http://www.pa.marion.fl.us",
       "searchUrl": "http://www.pa.marion.fl.us/PRC.aspx",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "marion",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "http://www.pa.marion.fl.us/PRC.aspx?key={ID}&YR=2026&mName=False&mSitus=False"
     },
     "martin": {
       "id": "martin",
@@ -378,7 +454,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "martin",
       "selectors": {},
       "timeout": 30000,
@@ -390,11 +468,14 @@
       "state": "FL",
       "appraiserUrl": "https://apps.miamidadepa.gov/PropertySearch",
       "searchUrl": "https://apps.miamidadepa.gov/PropertySearch/",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "miami-dade",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://apps.miamidadepa.gov/PropertySearch/#/?folio={ID}"
     },
     "monroe": {
       "id": "monroe",
@@ -402,7 +483,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "monroe",
       "selectors": {},
       "timeout": 30000,
@@ -414,7 +497,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "nassau",
       "selectors": {},
       "timeout": 30000,
@@ -426,7 +511,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "okaloosa",
       "selectors": {},
       "timeout": 30000,
@@ -438,7 +525,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "okeechobee",
       "selectors": {},
       "timeout": 30000,
@@ -448,13 +537,16 @@
       "id": "orange",
       "name": "Orange County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "appraiserUrl": "https://ocpaweb.ocpafl.org",
+      "searchUrl": "https://ocpaservices.ocpafl.org/Searches/ParcelInfoPrinterFriendly.aspx",
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "orange",
       "selectors": {},
-      "timeout": 30000,
-      "enabled": false
+      "timeout": 60000,
+      "enabled": true,
+      "propertyUrlTemplate": "https://ocpaweb.ocpafl.org/parcelsearch/Parcel%20ID/{ID}"
     },
     "osceola": {
       "id": "osceola",
@@ -462,11 +554,14 @@
       "state": "FL",
       "appraiserUrl": "https://search.property-appraiser.org",
       "searchUrl": "https://search.property-appraiser.org/Search",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "osceola",
       "selectors": {},
       "timeout": 120000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://search.property-appraiser.org/Search?PIN={ID}"
     },
     "palmbeach": {
       "id": "palmbeach",
@@ -474,11 +569,14 @@
       "state": "FL",
       "appraiserUrl": "https://pbcpao.gov",
       "searchUrl": "https://pbcpao.gov/Property/Details",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "palmbeach",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://pbcpao.gov/Property/Details?parcelId={ID}"
     },
     "pasco": {
       "id": "pasco",
@@ -486,11 +584,14 @@
       "state": "FL",
       "appraiserUrl": "https://search.pascopa.com",
       "searchUrl": "https://search.pascopa.com/parcel.aspx",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "pasco",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://search.pascopa.com/parcel.aspx?parcel={ID}"
     },
     "pinellas": {
       "id": "pinellas",
@@ -498,11 +599,14 @@
       "state": "FL",
       "appraiserUrl": "https://www.pcpao.gov",
       "searchUrl": "https://www.pcpao.gov/property-details",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "pinellas",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.pcpao.gov/property-details?s={ID}"
     },
     "polk": {
       "id": "polk",
@@ -510,11 +614,14 @@
       "state": "FL",
       "appraiserUrl": "https://www.polkflpa.gov",
       "searchUrl": "https://www.polkflpa.gov/CamaDisplay.aspx?migratedFrom=org&OutputMode=Display&SearchType=RealEstate&Page=FindByID",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "polk",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.polkflpa.gov/CamaDisplay.aspx?migratedFrom=org&OutputMode=Display&SearchType=RealEstate&Page=FindByID&ParcelID={ID}"
     },
     "putnam": {
       "id": "putnam",
@@ -522,11 +629,14 @@
       "state": "FL",
       "appraiserUrl": "https://apps.putnam-fl.com",
       "searchUrl": "https://apps.putnam-fl.com/pa/property/",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "putnam",
       "selectors": {},
       "timeout": 120000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://apps.putnam-fl.com/pa/property/?type=api&parcel={ID}"
     },
     "sarasota": {
       "id": "sarasota",
@@ -534,11 +644,14 @@
       "state": "FL",
       "appraiserUrl": "https://www.sc-pa.com",
       "searchUrl": "https://www.sc-pa.com/propertysearch/parcel",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "sarasota",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.sc-pa.com/propertysearch/parcel/{ID}"
     },
     "santa-rosa": {
       "id": "santa-rosa",
@@ -546,11 +659,14 @@
       "state": "FL",
       "appraiserUrl": "https://srcpa.gov",
       "searchUrl": "https://parcelview.srcpa.gov",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "santa-rosa",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://parcelview.srcpa.gov/?parcel={ID}&baseUrl=http://srcpa.gov/"
     },
     "seminole": {
       "id": "seminole",
@@ -558,7 +674,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "seminole",
       "selectors": {},
       "timeout": 30000,
@@ -570,7 +688,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "stlucie",
       "selectors": {},
       "timeout": 30000,
@@ -582,7 +702,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "sumter",
       "selectors": {},
       "timeout": 30000,
@@ -594,7 +716,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "suwannee",
       "selectors": {},
       "timeout": 30000,
@@ -606,7 +730,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "taylor",
       "selectors": {},
       "timeout": 30000,
@@ -618,11 +744,14 @@
       "state": "FL",
       "appraiserUrl": "https://vcpa.vcgov.org",
       "searchUrl": "https://vcpa.vcgov.org/parcel/summary/",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "volusia",
       "selectors": {},
       "timeout": 30000,
-      "enabled": true
+      "enabled": true,
+      "propertyUrlTemplate": "https://vcpa.vcgov.org/parcel/summary/?altkey={ID}"
     },
     "walton": {
       "id": "walton",
@@ -630,7 +759,9 @@
       "state": "FL",
       "appraiserUrl": "",
       "searchUrl": "",
-      "identifierTypes": ["parcelId"],
+      "identifierTypes": [
+        "parcelId"
+      ],
       "scraperModule": "walton",
       "selectors": {},
       "timeout": 30000,

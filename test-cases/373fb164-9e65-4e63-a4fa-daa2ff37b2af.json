@@ -1,0 +1,12 @@
+{
+  "id": "373fb164-9e65-4e63-a4fa-daa2ff37b2af",
+  "name": "orange_302235043104020",
+  "countyId": "orange",
+  "identifierType": "parcelId",
+  "identifier": "302235043104020",
+  "expectedOwnerName": "Laing Vielka",
+  "expectedAddress": "7008 Lakner Way\nOrlando, FL 32822-4633",
+  "description": "Orange County printer-friendly record extraction",
+  "createdAt": "2026-06-21T00:00:00.000Z",
+  "updatedAt": "2026-06-21T00:00:00.000Z"
+}

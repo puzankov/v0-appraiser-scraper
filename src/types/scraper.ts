@@ -72,6 +72,7 @@ export interface CountyConfig {
   timeout?: number
   enabled: boolean
   notes?: string
+  propertyUrlTemplate?: string
 }
 
 // Selectors for extracting data from county websites

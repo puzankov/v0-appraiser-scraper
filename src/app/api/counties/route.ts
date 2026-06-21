@@ -24,6 +24,8 @@ export async function GET() {
       state: config.state,
       identifierTypes: config.identifierTypes,
       enabled: config.enabled,
+      appraiserUrl: config.appraiserUrl,
+      propertyUrlTemplate: config.propertyUrlTemplate,
     }))
 
     const response: CountiesListResponse = {

@@ -8,8 +8,36 @@ import React, { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { TestCase, TestResult } from '@/types/test'
+import { CountySummary } from '@/types/api'
 
 type TestStatus = 'idle' | 'running' | 'passed' | 'failed'
+type FilterMode = 'all' | 'passed' | 'failed'
+
+function buildPropertyUrl(template: string, countyId: string, identifier: string): string {
+  let id = identifier
+
+  // County-specific ID transforms matching scraper logic
+  if (countyId === 'duval') {
+    id = identifier.replace(/-/g, '')
+  } else if (countyId === 'miamidade') {
+    id = identifier.replace(/\D/g, '')
+  } else if (countyId === 'pasco') {
+    // Reorder first 3 segments: "22-26-21-..." → "21-26-22-..." then strip non-numeric
+    const parts = identifier.split('-')
+    if (parts.length >= 3) {
+      const reordered = [parts[2], parts[1], parts[0], ...parts.slice(3)]
+      id = reordered.join('').replace(/\D/g, '')
+    } else {
+      id = identifier.replace(/\D/g, '')
+    }
+  }
+
+  // Don't encode if {ID} appears after a # (hash fragment URLs: brevard, hillsborough, miami-dade)
+  const hashIndex = template.indexOf('#')
+  const idIndex = template.indexOf('{ID}')
+  const inHash = hashIndex !== -1 && idIndex > hashIndex
+  return template.replace('{ID}', inHash ? id : encodeURIComponent(id))
+}
 
 interface TestCaseListProps {
   refreshTrigger: number
@@ -18,13 +46,15 @@ interface TestCaseListProps {
 
 export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
   const [testCases, setTestCases] = useState<TestCase[]>([])
-  const [loading, setLoading] = useState(false)
+  const [counties, setCounties] = useState<Record<string, CountySummary>>({})
+  const [loading, setLoading] = useState<string | null>(null)
   const [runningAll, setRunningAll] = useState(false)
   const [testStatuses, setTestStatuses] = useState<Record<string, TestStatus>>({})
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({})
   const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set())
   const [summary, setSummary] = useState<{ passed: number; failed: number } | null>(null)
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState<FilterMode>('all')
 
   const loadTestCases = async () => {
     try {
@@ -42,19 +72,25 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
   }
 
   useEffect(() => {
+    fetch('/api/counties')
+      .then((r) => r.json())
+      .then((data) => {
+        const map: Record<string, CountySummary> = {}
+        for (const c of data.counties || []) map[c.id] = c
+        setCounties(map)
+      })
+      .catch(console.error)
+  }, [])
+
+  useEffect(() => {
     loadTestCases()
   }, [refreshTrigger])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this test case?')) {
-      return
-    }
+    if (!confirm('Are you sure you want to delete this test case?')) return
 
     try {
-      const response = await fetch(`/api/test-cases/${id}`, {
-        method: 'DELETE',
-      })
-
+      const response = await fetch(`/api/test-cases/${id}`, { method: 'DELETE' })
       if (response.ok) {
         loadTestCases()
       } else {
@@ -67,21 +103,36 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
   }
 
   const handleRun = async (id: string) => {
-    setLoading(true)
+    setLoading(id)
+    setTestStatuses((prev) => ({ ...prev, [id]: 'running' }))
 
     try {
       const response = await fetch(`/api/test-cases/${id}?run=true`)
       if (response.ok) {
-        const result = await response.json()
+        const result: TestResult = await response.json()
+        setTestResults((prev) => ({ ...prev, [id]: result }))
+        if (result.passed) {
+          setTestStatuses((prev) => ({ ...prev, [id]: 'passed' }))
+          setExpandedErrors((prev) => {
+            const next = new Set(prev)
+            next.delete(id)
+            return next
+          })
+        } else {
+          setTestStatuses((prev) => ({ ...prev, [id]: 'failed' }))
+          setExpandedErrors((prev) => new Set(prev).add(id))
+        }
         onTestRun(result)
       } else {
+        setTestStatuses((prev) => ({ ...prev, [id]: 'idle' }))
         alert('Failed to run test case')
       }
     } catch (error) {
       console.error('Run failed:', error)
+      setTestStatuses((prev) => ({ ...prev, [id]: 'idle' }))
       alert('Run failed')
     } finally {
-      setLoading(false)
+      setLoading(null)
     }
   }
 
@@ -89,7 +140,6 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
     setRunningAll(true)
     setSummary(null)
 
-    // Reset all statuses
     const initial: Record<string, TestStatus> = {}
     for (const tc of testCases) initial[tc.id] = 'idle'
     setTestStatuses(initial)
@@ -220,7 +270,7 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
         <button
           onClick={() => toggleExpanded(id)}
           className="text-red-600 text-lg leading-none flex-shrink-0 hover:text-red-800"
-          title="Failed — click to see details"
+          title="Failed — click to toggle details"
         >
           ✗
         </button>
@@ -289,12 +339,38 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
     )
   }
 
+  const visibleTestCases = testCases.filter((tc) => {
+    if (filter === 'passed') return testStatuses[tc.id] === 'passed'
+    if (filter === 'failed') return testStatuses[tc.id] === 'failed'
+    return true
+  })
+
   return (
     <Card title="Saved Test Cases">
-      <div className="mb-4 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-gray-600">
-            {testCases.length} test case{testCases.length !== 1 ? 's' : ''}
+      <div className="mb-4 flex justify-between items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Filter tabs */}
+          <div className="flex rounded border border-gray-200 overflow-hidden text-xs">
+            {(['all', 'passed', 'failed'] as FilterMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setFilter(mode)}
+                className={`px-3 py-1 capitalize transition-colors ${
+                  filter === mode
+                    ? mode === 'passed'
+                      ? 'bg-green-100 text-green-700 font-medium'
+                      : mode === 'failed'
+                      ? 'bg-red-100 text-red-700 font-medium'
+                      : 'bg-gray-100 text-gray-700 font-medium'
+                    : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <p className="text-sm text-gray-500">
+            {visibleTestCases.length}/{testCases.length}
           </p>
           {summary && (
             <p className="text-sm">
@@ -318,56 +394,102 @@ export function TestCaseList({ refreshTrigger, onTestRun }: TestCaseListProps) {
 
       {testCases.length === 0 ? (
         <p className="text-gray-500 text-center py-8">No test cases saved yet</p>
+      ) : visibleTestCases.length === 0 ? (
+        <p className="text-gray-400 text-center py-8 text-sm">No {filter} tests</p>
       ) : (
         <div className="space-y-3">
-          {testCases.map((testCase) => (
-            <div
-              key={testCase.id}
-              className={`p-4 border rounded transition-colors ${
-                testStatuses[testCase.id] === 'passed'
-                  ? 'border-green-200 bg-green-50'
-                  : testStatuses[testCase.id] === 'failed'
-                  ? 'border-red-200 bg-red-50'
-                  : testStatuses[testCase.id] === 'running'
-                  ? 'border-blue-200 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  {renderStatusIcon(testCase.id)}
-                  <div className="min-w-0">
-                    <h4 className="font-medium text-gray-900">{testCase.name}</h4>
-                    <p className="text-sm text-gray-600">
-                      {testCase.countyId} • {testCase.identifierType}: {testCase.identifier}
-                    </p>
+          {visibleTestCases.map((testCase) => {
+            const county = counties[testCase.countyId]
+            const propertyUrl = county?.propertyUrlTemplate
+              ? buildPropertyUrl(county.propertyUrlTemplate, testCase.countyId, testCase.identifier)
+              : null
+            return (
+              <div
+                key={testCase.id}
+                className={`p-4 border rounded transition-colors ${
+                  testStatuses[testCase.id] === 'passed'
+                    ? 'border-green-200 bg-green-50'
+                    : testStatuses[testCase.id] === 'failed'
+                    ? 'border-red-200 bg-red-50'
+                    : testStatuses[testCase.id] === 'running'
+                    ? 'border-blue-200 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {/* Top row: status icon + name + appraiser link + buttons */}
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {renderStatusIcon(testCase.id)}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-medium text-gray-900">{testCase.name}</h4>
+                        {propertyUrl && (
+                          <a
+                            href={propertyUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs px-1.5 py-0.5 rounded border border-gray-300 text-gray-500 hover:text-blue-600 hover:border-blue-400 transition-colors"
+                            title="Open property page on appraiser site"
+                          >
+                            ↗ property
+                          </a>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {testCase.countyId} • {testCase.identifierType}: {testCase.identifier}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0 ml-3">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleRun(testCase.id)}
+                      disabled={loading === testCase.id || runningAll}
+                    >
+                      {loading === testCase.id ? 'Running...' : 'Run'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDelete(testCase.id)}
+                      disabled={runningAll}
+                    >
+                      Delete
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-2 flex-shrink-0 ml-3">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handleRun(testCase.id)}
-                    disabled={loading || runningAll}
-                  >
-                    Run
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => handleDelete(testCase.id)}
-                    disabled={runningAll}
-                  >
-                    Delete
-                  </Button>
+
+                {/* Expected values — always visible */}
+                <div className="mt-2 ml-8 text-xs text-gray-500 space-y-0.5">
+                  <div>
+                    <span className="text-gray-400">owner: </span>
+                    <span className="text-gray-700">{testCase.expectedOwnerName}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">address: </span>
+                    <span className="text-gray-700">{testCase.expectedAddress}</span>
+                  </div>
                 </div>
+
+                {/* Test case ID */}
+                <div className="mt-1.5 ml-8">
+                  <span
+                    className="text-xs text-gray-300 font-mono cursor-pointer hover:text-gray-500 transition-colors"
+                    title="Click to copy file ID"
+                    onClick={() => navigator.clipboard.writeText(testCase.id)}
+                  >
+                    {testCase.id}
+                  </span>
+                </div>
+
+                {testCase.description && (
+                  <p className="text-sm text-gray-500 mt-2 ml-8">{testCase.description}</p>
+                )}
+                {renderErrorDetails(testCase.id)}
               </div>
-              {testCase.description && (
-                <p className="text-sm text-gray-500 mt-2">{testCase.description}</p>
-              )}
-              {renderErrorDetails(testCase.id)}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </Card>

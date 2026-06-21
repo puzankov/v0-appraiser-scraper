@@ -22,6 +22,8 @@ export interface CountySummary {
   state: string
   identifierTypes: string[]
   enabled: boolean
+  appraiserUrl: string
+  propertyUrlTemplate?: string
 }
 
 // Error response format
