@@ -682,8 +682,8 @@
       "timeout": 30000,
       "enabled": false
     },
-    "stjohns": {
-      "id": "stjohns",
+    "saintjohns": {
+      "id": "saintjohns",
       "name": "St. Johns County",
       "state": "FL",
       "appraiserUrl": "https://qpublic.schneidercorp.com",
@@ -691,7 +691,7 @@
       "identifierTypes": [
         "parcelId"
       ],
-      "scraperModule": "stjohns",
+      "scraperModule": "saintjohns",
       "selectors": {},
       "timeout": 30000,
       "enabled": true,
