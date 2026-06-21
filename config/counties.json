@@ -682,6 +682,21 @@
       "timeout": 30000,
       "enabled": false
     },
+    "stjohns": {
+      "id": "stjohns",
+      "name": "St. Johns County",
+      "state": "FL",
+      "appraiserUrl": "https://qpublic.schneidercorp.com",
+      "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx?AppID=960&LayerID=21179&PageTypeID=4&PageID=9059&Q=1417436712",
+      "identifierTypes": [
+        "parcelId"
+      ],
+      "scraperModule": "stjohns",
+      "selectors": {},
+      "timeout": 30000,
+      "enabled": true,
+      "propertyUrlTemplate": "https://qpublic.schneidercorp.com/Application.aspx?AppID=960&LayerID=21179&PageTypeID=4&PageID=9059&Q=1417436712&KeyValue={ID}"
+    },
     "stlucie": {
       "id": "stlucie",
       "name": "St. Lucie County",
