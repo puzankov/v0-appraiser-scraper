@@ -1,0 +1,12 @@
+{
+  "id": "cdc269d5-1e18-48c2-aea3-ef4216fb8f83",
+  "name": "osceola_3627316000000L1000",
+  "countyId": "osceola",
+  "identifierType": "parcelId",
+  "identifier": "3627316000000L1000",
+  "expectedOwnerName": "DI TACCHIO JOYCE L",
+  "expectedAddress": "332 WALTER DRIVE KESWICK ON L4P 3A7 CANADA",
+  "description": "Osceola OData ParcelMarket API (alpha parcel id, foreign mailing addr)",
+  "createdAt": "2026-06-22T00:00:00.000Z",
+  "updatedAt": "2026-06-22T00:00:00.000Z"
+}

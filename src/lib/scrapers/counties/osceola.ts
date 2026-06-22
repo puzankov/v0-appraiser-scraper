@@ -1,7 +1,17 @@
 /**
  * Osceola County Property Appraiser Scraper
- * URL Pattern: https://search.property-appraiser.org/Search?PIN={parcelId}
- * Note: Page redirects to MainSearch after initial load
+ *
+ * Data source: the search.property-appraiser.org OData API that the site's own
+ * parcel search calls (public JSON, no browser):
+ *   https://search.property-appraiser.org/api/v1/ParcelMarket?$filter=strap eq '<strap>'
+ *
+ * The previous implementation drove the JS search page with Puppeteer (120s waits),
+ * which was slow and brittle. Querying the underlying API directly returns the owner
+ * (Owners) and mailing address (Mailing / MailAddr_* + mailCity/State/Zip/Country)
+ * as structured JSON.
+ *
+ * The "strap" is the parcel id with no separators (e.g. "3627316000000L1000"); the
+ * dashed display form "36-27-31-6000-000L-1000" is normalized to it.
  */
 
 import { Page } from 'puppeteer-core'
@@ -9,70 +19,36 @@ import { BaseScraper } from '../base/BaseScraper'
 import { ScrapeRequest, PropertyOwnerData } from '@/types/scraper'
 import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
+const DEFAULT_API_URL = 'https://search.property-appraiser.org/api/v1/ParcelMarket'
+
+interface ParcelMarket {
+  Owners?: string
+  Mailing?: string
+  MailAddr_1?: string
+  MailAddr_2?: string
+  MailAddr_3?: string
+  mailCity?: string
+  mailState?: string
+  mailZip?: string
+  mailCountry?: string
+}
+
 export default class OsceolaScraper extends BaseScraper {
-  /**
-   * Osceola uses PIN parameter which triggers redirect to MainSearch
-   */
-  protected async navigateToSearch(page: Page, request?: ScrapeRequest): Promise<void> {
-    if (!request) {
-      throw new ScraperError(
-        ErrorCode.VALIDATION_ERROR,
-        'Request is required for Osceola County navigation',
-        undefined,
-        this.config.id
-      )
-    }
-
-    // Construct the URL with PIN parameter
-    const url = `${this.config.searchUrl}?PIN=${request.identifier}`
-
-    console.log(`[${this.config.id}] Navigating to: ${url}`)
-
-    // Navigate and wait for redirects to complete
-    await page.goto(url, {
-      waitUntil: 'networkidle0',
-      timeout: 120000,
-    })
-
-    console.log(`[${this.config.id}] Final URL: ${page.url()}`)
-
-    // Wait additional time for content to fully render after redirects
-    console.log(`[${this.config.id}] Waiting for content to fully load...`)
-    await new Promise(resolve => setTimeout(resolve, 10000))
-  }
-
-  /**
-   * Override the main scrape method to pass request to navigation
-   */
   async scrape(request: ScrapeRequest): Promise<any> {
     const startTime = new Date().toISOString()
     const startTimestamp = Date.now()
 
-    let browser: any = null
-
     try {
-      console.log(`[${this.config.id}] Setting up browser...`)
-      browser = await this.setupBrowser()
+      console.log(`[${this.config.id}] Querying Osceola API for ${request.identifier}...`)
+      const propertyData = await this.fetchFromApi(request)
 
-      // Create page without request blocking (Osceola needs all resources)
-      const page = await browser.newPage()
-      await page.setViewport({ width: 1920, height: 1080 })
-      await page.setUserAgent(
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      )
-
-      // Navigate to property page (handles redirects)
-      await this.navigateToSearch(page, request)
-
-      // Extract property data
-      console.log(`[${this.config.id}] Extracting property data...`)
-      const propertyData = await this.extractPropertyData(page, request)
-
-      // Validate data
       this.validatePropertyData(propertyData)
 
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
+
+      console.log(`[${this.config.id}] Owner: ${propertyData.ownerNames.join(', ')}`)
+      console.log(`[${this.config.id}] Address: ${propertyData.mailingAddress}`)
 
       return {
         success: true,
@@ -118,138 +94,122 @@ export default class OsceolaScraper extends BaseScraper {
           duration,
         },
       }
-    } finally {
-      if (browser) {
-        const { closeBrowser } = await import('../utils/browser')
-        await closeBrowser(browser)
-      }
     }
   }
 
-  /**
-   * Osceola doesn't need a separate search step - navigation handles it
-   */
-  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
-    // No search needed - navigation handles everything
-  }
-
-  /**
-   * Extract property data from Osceola property page
-   */
-  protected async extractPropertyData(
-    page: Page,
-    request: ScrapeRequest
-  ): Promise<PropertyOwnerData> {
+  private async fetchFromApi(request: ScrapeRequest): Promise<PropertyOwnerData> {
     const { identifier, identifierType } = request
 
+    // strap = parcel id with no separators (handles dashed display form too)
+    const strap = identifier.trim().toUpperCase().replace(/[\s-]/g, '')
+    if (!strap) {
+      throw new ScraperError(
+        ErrorCode.VALIDATION_ERROR,
+        `Invalid parcel identifier: "${identifier}"`,
+        undefined,
+        this.config.id,
+        identifier
+      )
+    }
+
+    const baseUrl = this.config.searchUrl || DEFAULT_API_URL
+    const filter = `strap eq '${strap}'`.replace(/ /g, '%20').replace(/'/g, '%27')
+    const url = `${baseUrl}?$filter=${filter}&$top=1`
+
+    console.log(`[${this.config.id}] GET ${url}`)
+
+    let json: any
     try {
-      // Extract data by parsing the page text
-      const data = await page.evaluate(() => {
-        const bodyText = document.body.innerText
-
-        let ownerName = ''
-        let mailingAddress = ''
-
-        // Split into lines for parsing
-        const lines = bodyText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
-
-        // Find "Owner(s):" label and get the next non-empty line
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i]
-
-          // Look for "Owner(s):" or "Owner:" label
-          if (line.match(/^Owner\(s\)\s*:?$/i) || line.match(/^Owner\s*:?$/i)) {
-            // Owner name is in the next line(s)
-            for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-              const nextLine = lines[j].trim()
-              // Skip empty lines and stop at next label
-              if (!nextLine) continue
-              if (nextLine.includes(':')) break
-              if (nextLine.match(/^(Mailing|Property|Primary|Tax)/i)) break
-
-              ownerName = nextLine
-              break
-            }
-          }
-
-          // Look for "Mailing Address:" label - address might be on same line
-          if (line.match(/^Mailing Address\s*:?\s*/i)) {
-            // Check if address is on the same line
-            const sameLineMatch = line.match(/^Mailing Address\s*:?\s*(.+)/i)
-            if (sameLineMatch && sameLineMatch[1]) {
-              // Address is on the same line - remove "Request change" text
-              let addr = sameLineMatch[1].trim()
-              addr = addr.replace(/\s*Request change.*$/i, '')
-              if (addr.length > 10) {
-                mailingAddress = addr
-              }
-            }
-
-            // If not found on same line, look on next line(s)
-            if (!mailingAddress) {
-              const addressParts = []
-              for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
-                const nextLine = lines[j].trim()
-                if (!nextLine) continue
-                if (nextLine.match(/^(Property Address|Primary Use|Tax District|Request change)/i)) break
-                if (nextLine.includes(':') && !nextLine.match(/^\d/)) break
-
-                addressParts.push(nextLine)
-                if (nextLine.match(/[A-Z]{2}\s+\d{5}/)) break
-              }
-
-              if (addressParts.length > 0) {
-                mailingAddress = addressParts.join(' ')
-              }
-            }
-          }
-        }
-
-        return {
-          ownerName: ownerName.trim(),
-          mailingAddress: mailingAddress.trim()
-        }
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(this.config.timeout || 30000),
       })
-
-      // Check if we found the required data
-      if (!data.ownerName) {
-        throw createNoResultsError(this.config.id, identifier)
-      }
-
-      if (!data.mailingAddress) {
+      if (!res.ok) {
         throw new ScraperError(
-          ErrorCode.EXTRACTION_FAILED,
-          'Failed to extract mailing address',
+          ErrorCode.NAVIGATION_FAILED,
+          `Osceola API returned HTTP ${res.status}`,
           undefined,
           this.config.id,
           identifier
         )
       }
-
-      console.log(`[${this.config.id}] Successfully extracted data`)
-      console.log(`[${this.config.id}] Owner: ${data.ownerName}`)
-      console.log(`[${this.config.id}] Address: ${data.mailingAddress}`)
-
-      // Return the structured data
-      return {
-        ownerNames: [data.ownerName],
-        mailingAddress: data.mailingAddress,
-        countyId: this.config.id,
-        identifier,
-        identifierType,
-        scrapedAt: new Date().toISOString(),
-      }
+      json = await res.json()
     } catch (error) {
-      if (error instanceof ScraperError) {
-        throw error
-      }
+      if (error instanceof ScraperError) throw error
       throw new ScraperError(
-        ErrorCode.EXTRACTION_FAILED,
-        `Failed to extract property data: ${error instanceof Error ? error.message : String(error)}`,
+        ErrorCode.NAVIGATION_FAILED,
+        `Failed to reach Osceola API: ${error instanceof Error ? error.message : String(error)}`,
         error,
         this.config.id,
         identifier
       )
     }
+
+    const rows: ParcelMarket[] = json?.value || []
+    if (rows.length === 0) {
+      throw createNoResultsError(this.config.id, identifier)
+    }
+
+    const row = rows[0]
+    const ownerName = (row.Owners || '').replace(/\s+/g, ' ').trim()
+    if (!ownerName) {
+      throw createNoResultsError(this.config.id, identifier)
+    }
+
+    const mailingAddress = this.buildMailingAddress(row)
+    if (!mailingAddress) {
+      throw new ScraperError(
+        ErrorCode.EXTRACTION_FAILED,
+        'Failed to build mailing address from API response',
+        row,
+        this.config.id,
+        identifier
+      )
+    }
+
+    return {
+      ownerNames: [ownerName],
+      mailingAddress,
+      countyId: this.config.id,
+      identifier,
+      identifierType,
+      scrapedAt: new Date().toISOString(),
+    }
+  }
+
+  /**
+   * Build a single-line mailing address. Prefer the API's combined "Mailing" field
+   * (collapsing its padding); fall back to the structured fields.
+   * e.g. "332 WALTER DRIVE KESWICK ON L4P 3A7 CANADA"
+   */
+  private buildMailingAddress(row: ParcelMarket): string {
+    const combined = (row.Mailing || '').replace(/\s+/g, ' ').trim()
+    if (combined) return combined
+
+    const parts = [
+      row.MailAddr_1,
+      row.MailAddr_2,
+      row.MailAddr_3,
+      row.mailCity,
+      row.mailState,
+      row.mailZip,
+      row.mailCountry,
+    ]
+      .map((s) => (s || '').trim())
+      .filter((s) => s.length > 0)
+
+    return parts.join(' ').replace(/\s+/g, ' ').trim()
+  }
+
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
+    // unused — data comes from the OData API in scrape()
+  }
+
+  protected async extractPropertyData(_page: Page, request: ScrapeRequest): Promise<PropertyOwnerData> {
+    return this.fetchFromApi(request)
   }
 }
