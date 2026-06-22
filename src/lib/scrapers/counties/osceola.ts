@@ -1,36 +1,40 @@
 /**
  * Osceola County Property Appraiser Scraper
  *
- * Data source: the search.property-appraiser.org OData API that the site's own
- * parcel search calls (public JSON, no browser):
- *   https://search.property-appraiser.org/api/v1/ParcelMarket?$filter=strap eq '<strap>'
+ * Data source: Osceola County GIS "Parcels" ArcGIS FeatureServer (public JSON,
+ * Esri-hosted, no browser, no Cloudflare):
+ *   https://gis.osceola.org/hosting/rest/services/Parcels/FeatureServer/3/query
  *
- * The previous implementation drove the JS search page with Puppeteer (120s waits),
- * which was slow and brittle. Querying the underlying API directly returns the owner
- * (Owners) and mailing address (Mailing / MailAddr_* + mailCity/State/Zip/Country)
- * as structured JSON.
+ * Why not search.property-appraiser.org? That site (and every property-appraiser.org
+ * / county-taxes.com host) sits behind Cloudflare Bot Management, which 403s
+ * server-side requests from Vercel's datacenter IP. The statewide FDOR cadastral is
+ * reachable but is a stale annual snapshot and can't represent foreign postal codes.
+ * The county GIS layer has current owner (Owner1/2/3) and full billing address
+ * including Country, so foreign (e.g. Canadian) mailing addresses come through intact.
  *
- * The "strap" is the parcel id with no separators (e.g. "3627316000000L1000"); the
- * dashed display form "36-27-31-6000-000L-1000" is normalized to it.
+ * The parcel id is the "Strap" (no separators, e.g. "3627316000000L1000"); the dashed
+ * display form "36-27-31-6000-000L-1000" is normalized to it.
  */
 
+import https from 'node:https'
 import { Page } from 'puppeteer-core'
 import { BaseScraper } from '../base/BaseScraper'
 import { ScrapeRequest, PropertyOwnerData } from '@/types/scraper'
 import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
-const DEFAULT_API_URL = 'https://search.property-appraiser.org/api/v1/ParcelMarket'
+const DEFAULT_API_URL = 'https://gis.osceola.org/hosting/rest/services/Parcels/FeatureServer/3/query'
 
-interface ParcelMarket {
-  Owners?: string
-  Mailing?: string
-  MailAddr_1?: string
-  MailAddr_2?: string
-  MailAddr_3?: string
-  mailCity?: string
-  mailState?: string
-  mailZip?: string
-  mailCountry?: string
+interface ParcelAttributes {
+  Owner1?: string
+  Owner2?: string
+  Owner3?: string
+  BillingAdd?: string
+  BillingA_1?: string
+  BillingA_2?: string
+  City?: string
+  State?: string
+  Zip?: string
+  Country?: string
 }
 
 export default class OsceolaScraper extends BaseScraper {
@@ -39,7 +43,7 @@ export default class OsceolaScraper extends BaseScraper {
     const startTimestamp = Date.now()
 
     try {
-      console.log(`[${this.config.id}] Querying Osceola API for ${request.identifier}...`)
+      console.log(`[${this.config.id}] Querying Osceola GIS for ${request.identifier}...`)
       const propertyData = await this.fetchFromApi(request)
 
       this.validatePropertyData(propertyData)
@@ -97,10 +101,39 @@ export default class OsceolaScraper extends BaseScraper {
     }
   }
 
+  /**
+   * GET over https. gis.osceola.org serves a valid Entrust cert but omits the
+   * intermediate from the chain, so Node's global fetch fails with
+   * UNABLE_TO_VERIFY_LEAF_SIGNATURE (browsers/curl recover via AIA). We use
+   * node:https with relaxed verification scoped to this single request.
+   */
+  private httpsGet(url: string, timeoutMs: number): Promise<{ status: number; body: string }> {
+    return new Promise((resolve, reject) => {
+      const req = https.get(
+        url,
+        {
+          rejectUnauthorized: false,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'application/json',
+          },
+        },
+        (res) => {
+          const chunks: Buffer[] = []
+          res.on('data', (c) => chunks.push(c as Buffer))
+          res.on('end', () => resolve({ status: res.statusCode || 0, body: Buffer.concat(chunks).toString('utf-8') }))
+        }
+      )
+      req.on('error', reject)
+      req.setTimeout(timeoutMs, () => req.destroy(new Error(`Request timed out after ${timeoutMs}ms`)))
+    })
+  }
+
   private async fetchFromApi(request: ScrapeRequest): Promise<PropertyOwnerData> {
     const { identifier, identifierType } = request
 
-    // strap = parcel id with no separators (handles dashed display form too)
+    // Strap = parcel id with no separators (handles the dashed display form too)
     const strap = identifier.trim().toUpperCase().replace(/[\s-]/g, '')
     if (!strap) {
       throw new ScraperError(
@@ -113,59 +146,70 @@ export default class OsceolaScraper extends BaseScraper {
     }
 
     const baseUrl = this.config.searchUrl || DEFAULT_API_URL
-    const filter = `strap eq '${strap}'`.replace(/ /g, '%20').replace(/'/g, '%27')
-    const url = `${baseUrl}?$filter=${filter}&$top=1`
+    const params = new URLSearchParams({
+      where: `Strap='${strap.replace(/'/g, "''")}'`,
+      outFields: 'Owner1,Owner2,Owner3,BillingAdd,BillingA_1,BillingA_2,City,State,Zip,Country',
+      returnGeometry: 'false',
+      f: 'json',
+    })
+    const url = `${baseUrl}?${params.toString()}`
 
     console.log(`[${this.config.id}] GET ${url}`)
 
     let json: any
     try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: 'application/json',
-        },
-        signal: AbortSignal.timeout(this.config.timeout || 30000),
-      })
-      if (!res.ok) {
+      const { status, body } = await this.httpsGet(url, this.config.timeout || 30000)
+      if (status !== 200) {
         throw new ScraperError(
           ErrorCode.NAVIGATION_FAILED,
-          `Osceola API returned HTTP ${res.status}`,
+          `Osceola GIS returned HTTP ${status}`,
           undefined,
           this.config.id,
           identifier
         )
       }
-      json = await res.json()
+      json = JSON.parse(body)
     } catch (error) {
       if (error instanceof ScraperError) throw error
       throw new ScraperError(
         ErrorCode.NAVIGATION_FAILED,
-        `Failed to reach Osceola API: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to reach Osceola GIS: ${error instanceof Error ? error.message : String(error)}`,
         error,
         this.config.id,
         identifier
       )
     }
 
-    const rows: ParcelMarket[] = json?.value || []
+    if (json?.error) {
+      throw new ScraperError(
+        ErrorCode.EXTRACTION_FAILED,
+        `GIS query error: ${json.error.message || JSON.stringify(json.error)}`,
+        json.error,
+        this.config.id,
+        identifier
+      )
+    }
+
+    const rows: Array<{ attributes: ParcelAttributes }> = json?.features || []
     if (rows.length === 0) {
       throw createNoResultsError(this.config.id, identifier)
     }
 
-    const row = rows[0]
-    const ownerName = (row.Owners || '').replace(/\s+/g, ' ').trim()
+    const attr = rows[0].attributes
+    const ownerName = [attr.Owner1, attr.Owner2, attr.Owner3]
+      .map((s) => (s || '').trim())
+      .filter((s) => s.length > 0)
+      .join('\n')
     if (!ownerName) {
       throw createNoResultsError(this.config.id, identifier)
     }
 
-    const mailingAddress = this.buildMailingAddress(row)
+    const mailingAddress = this.buildMailingAddress(attr)
     if (!mailingAddress) {
       throw new ScraperError(
         ErrorCode.EXTRACTION_FAILED,
-        'Failed to build mailing address from API response',
-        row,
+        'Failed to build mailing address from GIS attributes',
+        attr,
         this.config.id,
         identifier
       )
@@ -182,31 +226,33 @@ export default class OsceolaScraper extends BaseScraper {
   }
 
   /**
-   * Build a single-line mailing address. Prefer the API's combined "Mailing" field
-   * (collapsing its padding); fall back to the structured fields.
-   * e.g. "332 WALTER DRIVE KESWICK ON L4P 3A7 CANADA"
+   * Build the mailing address from the billing fields, appending the country for
+   * foreign addresses. e.g. "332 WALTER DRIVE\nKESWICK, ON L4P 3A7\nCANADA"
    */
-  private buildMailingAddress(row: ParcelMarket): string {
-    const combined = (row.Mailing || '').replace(/\s+/g, ' ').trim()
-    if (combined) return combined
-
-    const parts = [
-      row.MailAddr_1,
-      row.MailAddr_2,
-      row.MailAddr_3,
-      row.mailCity,
-      row.mailState,
-      row.mailZip,
-      row.mailCountry,
-    ]
+  private buildMailingAddress(attr: ParcelAttributes): string {
+    const streetLines = [attr.BillingAdd, attr.BillingA_1, attr.BillingA_2]
       .map((s) => (s || '').trim())
       .filter((s) => s.length > 0)
 
-    return parts.join(' ').replace(/\s+/g, ' ').trim()
+    const cityStateZip = [
+      (attr.City || '').trim(),
+      [(attr.State || '').trim(), (attr.Zip || '').trim()].filter(Boolean).join(' '),
+    ]
+      .filter(Boolean)
+      .join(', ')
+
+    const lines = [...streetLines, cityStateZip].filter(Boolean)
+
+    const country = (attr.Country || '').trim()
+    if (country && !/^(USA?|UNITED STATES)$/i.test(country)) {
+      lines.push(country)
+    }
+
+    return lines.join('\n')
   }
 
   protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
-    // unused — data comes from the OData API in scrape()
+    // unused — data comes from the GIS REST API in scrape()
   }
 
   protected async extractPropertyData(_page: Page, request: ScrapeRequest): Promise<PropertyOwnerData> {

@@ -553,7 +553,7 @@
       "name": "Osceola County",
       "state": "FL",
       "appraiserUrl": "https://search.property-appraiser.org",
-      "searchUrl": "https://search.property-appraiser.org/api/v1/ParcelMarket",
+      "searchUrl": "https://gis.osceola.org/hosting/rest/services/Parcels/FeatureServer/3/query",
       "identifierTypes": [
         "parcelId"
       ],
