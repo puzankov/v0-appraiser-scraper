@@ -23,7 +23,10 @@ export default class PolkScraper extends BaseScraper {
       )
     }
 
-    const url = `${this.config.searchUrl}&ParcelID=${encodeURIComponent(request.identifier)}`
+    // Polk's FindByID expects the parcel id with no separators (e.g.
+    // "24-28-27-2435-0000-0033" -> "242827243500000033"); strip dashes/spaces.
+    const parcelId = request.identifier.replace(/[^0-9a-zA-Z]/g, '')
+    const url = `${this.config.searchUrl}&ParcelID=${encodeURIComponent(parcelId)}`
 
     console.log(`[${this.config.id}] Navigating to: ${url}`)
 

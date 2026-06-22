@@ -1,0 +1,12 @@
+{
+  "id": "fba82eed-622e-4210-b580-302c49121b70",
+  "name": "polk_24-28-27-2435-0000-0033",
+  "countyId": "polk",
+  "identifierType": "parcelId",
+  "identifier": "24-28-27-2435-0000-0033",
+  "expectedOwnerName": "BENTON BERNICE ESTATE OF",
+  "expectedAddress": "1615 REYNOLDS RD\nLAKELAND FL 33801-6949",
+  "description": "Polk parcel id with dashes (normalized before lookup)",
+  "createdAt": "2026-06-22T00:00:00.000Z",
+  "updatedAt": "2026-06-22T00:00:00.000Z"
+}
