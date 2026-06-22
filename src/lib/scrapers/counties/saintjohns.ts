@@ -1,8 +1,20 @@
 /**
  * St. Johns County Property Appraiser Scraper
- * URL Pattern: https://qpublic.schneidercorp.com/Application.aspx?AppID=960&LayerID=21179&PageTypeID=4&PageID=9059&Q=...&KeyValue={parcelId}
- * Note: Uses the qpublic.schneidercorp.com system, same as Flagler/Clay County.
- *       searchUrl in the config already carries the full query string; we append &KeyValue.
+ *
+ * Data source: St. Johns County GIS ArcGIS REST API (public, JSON, no browser).
+ *   https://www.gis.sjcfl.us/portal_sjcgis/rest/services/Parcel/MapServer/0/query
+ *
+ * Why not qpublic? The St. Johns appraiser report lives on qpublic.schneidercorp.com,
+ * which sits behind Cloudflare Bot Management. From a residential browser it loads
+ * fine, but from Vercel's serverless Chromium on an AWS datacenter IP, Cloudflare
+ * serves a "Just a moment..." JS challenge that never clears — so Puppeteer scraping
+ * times out in production. The county GIS ArcGIS service exposes the same parcel
+ * owner + mailing-address data as plain JSON with no bot protection, so we query it
+ * directly. This needs no browser and works reliably on Vercel.
+ *
+ * Note: the GIS parcel layer carries a single owner-name field (PRP_NAME), so only
+ * the primary owner is returned; secondary co-owners shown on qpublic are not
+ * available from this source.
  */
 
 import { Page } from 'puppeteer-core'
@@ -10,107 +22,37 @@ import { BaseScraper } from '../base/BaseScraper'
 import { ScrapeRequest, PropertyOwnerData } from '@/types/scraper'
 import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
+// ArcGIS query endpoint (overridable via county config.searchUrl)
+const DEFAULT_ARCGIS_QUERY_URL =
+  'https://www.gis.sjcfl.us/portal_sjcgis/rest/services/Parcel/MapServer/0/query'
+
+interface ParcelAttributes {
+  PRP_NAME?: string
+  OWN_ADDRES?: string
+  OWN_ADDR_1?: string
+  OWN_ADDR_2?: string
+  OWN_CITY?: string
+  OWN_STATE?: string
+  OWN_ZIPCOD?: string
+}
+
 export default class StJohnsScraper extends BaseScraper {
-  /**
-   * St. Johns uses direct URL navigation with KeyValue parameter
-   */
-  protected async navigateToSearch(page: Page, request?: ScrapeRequest): Promise<void> {
-    if (!request) {
-      throw new ScraperError(
-        ErrorCode.VALIDATION_ERROR,
-        'Request is required for St. Johns County navigation',
-        undefined,
-        this.config.id
-      )
-    }
-
-    const url = `${this.config.searchUrl}&KeyValue=${encodeURIComponent(request.identifier)}`
-
-    console.log(`[${this.config.id}] Navigating to: ${url}`)
-
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: this.config.timeout || 30000,
-    })
-  }
-
-  /**
-   * Override the main scrape method to pass request to navigation
-   */
   async scrape(request: ScrapeRequest): Promise<any> {
     const startTime = new Date().toISOString()
     const startTimestamp = Date.now()
 
-    let browser: any = null
-
     try {
-      console.log(`[${this.config.id}] Setting up browser...`)
-      browser = await this.setupBrowser()
-
-      const { createPage } = await import('../utils/browser')
-      const page = await createPage(browser)
-
-      // Navigate directly to property page
-      await this.navigateToSearch(page, request)
-
-      // Wait for content to load. qpublic/Beacon serves more than one template
-      // version of the report page (which one you get can vary by client/region):
-      //  - "new" template: an rptOwner repeater with [id$="_lblOwnerAddress"]
-      //  - "old" template: [id*="sprPrimaryOwnerName"] inside .three/.four-column-blocks
-      // Locally we tend to get the new template; on Vercel the old one has been
-      // observed. Wait for EITHER so we work regardless of which is served.
-      console.log(`[${this.config.id}] Waiting for property data...`)
-      const OWNER_SELECTORS =
-        '[id$="_lblOwnerAddress"], [id*="sprPrimaryOwnerName"], .four-column-blocks, .three-column-blocks'
-      try {
-        await page.waitForSelector(OWNER_SELECTORS, { timeout: this.config.timeout || 10000 })
-      } catch (waitError) {
-        // Neither template appeared. Capture what the page actually returned so
-        // the failure is diagnosable (bot block / disclaimer / unexpected page)
-        // instead of a bare timeout.
-        const diag = await page
-          .evaluate(() => ({
-            title: document.title,
-            url: location.href,
-            blocked: /incapsula|incident id|request unsuccessful|access denied|are you a human|captcha/i.test(
-              document.documentElement.outerHTML
-            ),
-            disclaimer: /disclaimer|i acknowledge|i agree|terms of use|please agree/i.test(
-              (document.body ? document.body.innerText : '')
-            ),
-            // Visible button/link labels — if qpublic shows an "Agree" interstitial,
-            // these tell us what to click to get through.
-            buttons: Array.from(document.querySelectorAll('button, input[type="submit"], a.btn, a[id*="Agree"], a[id*="agree"]'))
-              .map((el) => (el.textContent || (el as HTMLInputElement).value || '').trim())
-              .filter(Boolean)
-              .slice(0, 10),
-            bodyStart: (document.body ? document.body.innerText : '').replace(/\s+/g, ' ').trim().slice(0, 300),
-          }))
-          .catch(() => null)
-        console.error(`[${this.config.id}] Owner selector not found. Page diagnostics:`, JSON.stringify(diag))
-        const reason = diag?.blocked
-          ? `qpublic is blocking the request (bot protection)`
-          : diag?.disclaimer
-            ? `qpublic served a disclaimer/agreement interstitial (buttons: ${JSON.stringify(diag.buttons)})`
-            : `owner data not present on the served page`
-        throw new ScraperError(
-          ErrorCode.EXTRACTION_FAILED,
-          `${reason}. Title: "${diag?.title ?? 'unknown'}", URL: ${diag?.url ?? 'unknown'}. Snippet: ${diag?.bodyStart ?? 'n/a'}`,
-          waitError,
-          this.config.id,
-          request.identifier
-        )
-      }
-
-      // Extract property data
-      console.log(`[${this.config.id}] Extracting property data...`)
-      const propertyData = await this.extractPropertyData(page, request)
+      console.log(`[${this.config.id}] Querying St. Johns GIS for ${request.identifier}...`)
+      const propertyData = await this.fetchFromArcGIS(request)
 
       // Validate data
       this.validatePropertyData(propertyData)
 
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
+
+      console.log(`[${this.config.id}] Owner: ${propertyData.ownerNames.join(', ')}`)
+      console.log(`[${this.config.id}] Address: ${propertyData.mailingAddress}`)
 
       return {
         success: true,
@@ -156,147 +98,142 @@ export default class StJohnsScraper extends BaseScraper {
           duration,
         },
       }
-    } finally {
-      if (browser) {
-        const { closeBrowser } = await import('../utils/browser')
-        await closeBrowser(browser)
-      }
     }
   }
 
   /**
-   * St. Johns doesn't need a search step - we navigate directly to the property page
+   * Query the county GIS ArcGIS REST service for the parcel and build owner data.
    */
-  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
-    // No search needed - navigation handles everything
-  }
-
-  /**
-   * Extract property data from St. Johns property details page.
-   * Handles BOTH qpublic/Beacon template versions, since which one is served can
-   * vary by client/region (new template seen locally, old template seen on Vercel):
-   *   - new: rptOwner repeater — name in [...sprOwnerName1...lblSearch]
-   *     (sprOwnerName2 is the ownership %, not a name), address in [...lblOwnerAddress]
-   *   - old: [id*="sprPrimaryOwnerName"] for the name + [id*="sprPrimaryOwnerAddress"]
-   *     for the owner-continuation/address block (Flagler-style)
-   * The same mailing address is repeated per owner, so addresses are de-duplicated.
-   */
-  protected async extractPropertyData(
-    page: Page,
-    request: ScrapeRequest
-  ): Promise<PropertyOwnerData> {
+  private async fetchFromArcGIS(request: ScrapeRequest): Promise<PropertyOwnerData> {
     const { identifier, identifierType } = request
 
+    // STRAP is the clean numeric parcel id used by the GIS layer (no spaces)
+    const strap = identifier.replace(/[^0-9]/g, '')
+    if (!strap) {
+      throw new ScraperError(
+        ErrorCode.VALIDATION_ERROR,
+        `Invalid parcel identifier: "${identifier}"`,
+        undefined,
+        this.config.id,
+        identifier
+      )
+    }
+
+    const baseUrl = this.config.searchUrl || DEFAULT_ARCGIS_QUERY_URL
+    const params = new URLSearchParams({
+      where: `STRAP='${strap}'`,
+      outFields: 'PRP_NAME,OWN_ADDRES,OWN_ADDR_1,OWN_ADDR_2,OWN_CITY,OWN_STATE,OWN_ZIPCOD',
+      returnGeometry: 'false',
+      f: 'json',
+    })
+    const url = `${baseUrl}?${params.toString()}`
+
+    console.log(`[${this.config.id}] GET ${url}`)
+
+    let json: any
     try {
-      // Extract data using page.evaluate to run in browser context
-      const data = await page.evaluate(() => {
-        // Convert innerHTML (with <br>) into trimmed, non-empty lines
-        const htmlToLines = (html: string): string[] => {
-          const withMarkers = html.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
-          const temp = document.createElement('div')
-          temp.innerHTML = withMarkers
-          const decoded = temp.textContent || ''
-          return decoded
-            .split('|||NEWLINE|||')
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
-        }
-
-        // --- New template: rptOwner repeater anchored by _lblOwnerAddress ---
-        const extractNew = () => {
-          const ownerNames: string[] = []
-          const addresses: string[] = []
-          const addressEls = Array.from(document.querySelectorAll('[id$="_lblOwnerAddress"]'))
-          for (const addrEl of addressEls) {
-            const prefix = addrEl.id.replace(/_lblOwnerAddress$/, '')
-            const nameEl = document.querySelector(`[id^="${prefix}_sprOwnerName1"][id$="lblSearch"]`)
-            const ownerName = nameEl?.textContent?.trim() || ''
-            if (ownerName) ownerNames.push(ownerName)
-            const address = htmlToLines(addrEl.innerHTML).join('\n')
-            if (address) addresses.push(address)
-          }
-          return { ownerNames, addresses }
-        }
-
-        // --- Old template: sprPrimaryOwnerName + sprPrimaryOwnerAddress ---
-        const extractOld = () => {
-          const ownerNames: string[] = []
-          const addresses: string[] = []
-          const nameEl = document.querySelector('[id*="sprPrimaryOwnerName"]')
-          const addrEl = document.querySelector('[id*="sprPrimaryOwnerAddress"]')
-          if (nameEl) {
-            const primaryName = nameEl.textContent?.trim() || ''
-            const ownerParts: string[] = primaryName ? [primaryName] : []
-            const addressParts: string[] = []
-            if (addrEl) {
-              for (const line of htmlToLines(addrEl.innerHTML)) {
-                // Address lines start with a street number or a "City ST ZIP" tail;
-                // anything before that is owner-continuation (e.g. a second owner).
-                if (/^\d+/.test(line) || /[A-Z]{2}\s+\d{5}/.test(line) || addressParts.length > 0) {
-                  addressParts.push(line)
-                } else {
-                  ownerParts.push(line)
-                }
-              }
-            }
-            if (ownerParts.length) ownerNames.push(ownerParts.join('\n'))
-            if (addressParts.length) addresses.push(addressParts.join('\n'))
-          }
-          return { ownerNames, addresses }
-        }
-
-        // Prefer the new template; fall back to the old one
-        let res = extractNew()
-        let template = 'new'
-        if (res.ownerNames.length === 0) {
-          res = extractOld()
-          template = 'old'
-        }
-
-        return {
-          ownerName: res.ownerNames.join('\n'),
-          mailingAddress: [...new Set(res.addresses)].join('\n'),
-          template,
-        }
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(this.config.timeout || 30000),
       })
-
-      console.log(`[${this.config.id}] Extracted via "${data.template}" template`)
-
-      // Check if we found the required data
-      if (!data.ownerName) {
-        throw createNoResultsError(this.config.id, identifier)
-      }
-
-      if (!data.mailingAddress) {
+      if (!res.ok) {
         throw new ScraperError(
-          ErrorCode.EXTRACTION_FAILED,
-          'Failed to extract mailing address',
+          ErrorCode.NAVIGATION_FAILED,
+          `GIS request failed with HTTP ${res.status}`,
           undefined,
           this.config.id,
           identifier
         )
       }
-
-      // Return the structured data
-      return {
-        ownerNames: [data.ownerName],
-        mailingAddress: data.mailingAddress,
-        countyId: this.config.id,
-        identifier,
-        identifierType,
-        scrapedAt: new Date().toISOString(),
-      }
+      json = await res.json()
     } catch (error) {
-      if (error instanceof ScraperError) {
-        throw error
-      }
+      if (error instanceof ScraperError) throw error
       throw new ScraperError(
-        ErrorCode.EXTRACTION_FAILED,
-        `Failed to extract property data: ${error instanceof Error ? error.message : String(error)}`,
+        ErrorCode.NAVIGATION_FAILED,
+        `Failed to reach St. Johns GIS: ${error instanceof Error ? error.message : String(error)}`,
         error,
         this.config.id,
         identifier
       )
     }
+
+    // ArcGIS returns errors in the body with a 200 status
+    if (json?.error) {
+      throw new ScraperError(
+        ErrorCode.EXTRACTION_FAILED,
+        `GIS query error: ${json.error.message || JSON.stringify(json.error)}`,
+        json.error,
+        this.config.id,
+        identifier
+      )
+    }
+
+    const features: Array<{ attributes: ParcelAttributes }> = json?.features || []
+    if (features.length === 0) {
+      throw createNoResultsError(this.config.id, identifier)
+    }
+
+    const attr = features[0].attributes
+    const ownerName = (attr.PRP_NAME || '').trim()
+    if (!ownerName) {
+      throw createNoResultsError(this.config.id, identifier)
+    }
+
+    const mailingAddress = this.buildMailingAddress(attr)
+    if (!mailingAddress) {
+      throw new ScraperError(
+        ErrorCode.EXTRACTION_FAILED,
+        'Failed to build mailing address from GIS attributes',
+        attr,
+        this.config.id,
+        identifier
+      )
+    }
+
+    return {
+      ownerNames: [ownerName],
+      mailingAddress,
+      countyId: this.config.id,
+      identifier,
+      identifierType,
+      scrapedAt: new Date().toISOString(),
+    }
+  }
+
+  /**
+   * Assemble a multi-line mailing address from the GIS owner-address fields.
+   * e.g. "164 N RIVER DR\nSAINT AUGUSTINE, FL 32095-0000"
+   */
+  private buildMailingAddress(attr: ParcelAttributes): string {
+    const streetLines = [attr.OWN_ADDRES, attr.OWN_ADDR_1, attr.OWN_ADDR_2]
+      .map((s) => (s || '').trim())
+      .filter((s) => s.length > 0)
+
+    const zipDigits = (attr.OWN_ZIPCOD || '').replace(/\D/g, '')
+    const zip = zipDigits.length > 5 ? `${zipDigits.slice(0, 5)}-${zipDigits.slice(5, 9)}` : zipDigits
+
+    const cityStateZip = [
+      (attr.OWN_CITY || '').trim(),
+      [(attr.OWN_STATE || '').trim(), zip].filter(Boolean).join(' '),
+    ]
+      .filter(Boolean)
+      .join(', ')
+
+    return [...streetLines, cityStateZip].filter(Boolean).join('\n')
+  }
+
+  // The BaseScraper template (browser-based) is unused for St. Johns — all data
+  // comes from the GIS REST API in scrape() above. These satisfy the abstract
+  // contract but are never invoked.
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
+    // unused
+  }
+
+  protected async extractPropertyData(_page: Page, request: ScrapeRequest): Promise<PropertyOwnerData> {
+    return this.fetchFromArcGIS(request)
   }
 }

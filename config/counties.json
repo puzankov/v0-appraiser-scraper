@@ -687,7 +687,7 @@
       "name": "St. Johns County",
       "state": "FL",
       "appraiserUrl": "https://qpublic.schneidercorp.com",
-      "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx?AppID=960&LayerID=21179&PageTypeID=4&PageID=9059&Q=1417436712",
+      "searchUrl": "https://www.gis.sjcfl.us/portal_sjcgis/rest/services/Parcel/MapServer/0/query",
       "identifierTypes": [
         "parcelId"
       ],

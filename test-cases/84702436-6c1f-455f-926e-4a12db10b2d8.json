@@ -4,9 +4,9 @@
   "countyId": "saintjohns",
   "identifierType": "parcelId",
   "identifier": "0720790030",
-  "expectedOwnerName": "SCHEMER MARTIN,TAMALA\nSCHEMER TAMALA",
+  "expectedOwnerName": "SCHEMER MARTIN,TAMALA",
   "expectedAddress": "164 N RIVER DR\nSAINT AUGUSTINE, FL 32095-0000",
-  "description": "St. Johns County qpublic record extraction",
+  "description": "St. Johns County GIS ArcGIS lookup (primary owner only)",
   "createdAt": "2026-06-21T00:00:00.000Z",
   "updatedAt": "2026-06-21T00:00:00.000Z"
 }
