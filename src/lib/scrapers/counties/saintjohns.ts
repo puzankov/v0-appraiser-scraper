@@ -53,15 +53,21 @@ export default class StJohnsScraper extends BaseScraper {
       // Navigate directly to property page
       await this.navigateToSearch(page, request)
 
-      // Wait for content to load
+      // Wait for content to load. qpublic/Beacon serves more than one template
+      // version of the report page (which one you get can vary by client/region):
+      //  - "new" template: an rptOwner repeater with [id$="_lblOwnerAddress"]
+      //  - "old" template: [id*="sprPrimaryOwnerName"] inside .three/.four-column-blocks
+      // Locally we tend to get the new template; on Vercel the old one has been
+      // observed. Wait for EITHER so we work regardless of which is served.
       console.log(`[${this.config.id}] Waiting for property data...`)
+      const OWNER_SELECTORS =
+        '[id$="_lblOwnerAddress"], [id*="sprPrimaryOwnerName"], .four-column-blocks, .three-column-blocks'
       try {
-        await page.waitForSelector('[id$="_lblOwnerAddress"]', { timeout: this.config.timeout || 10000 })
+        await page.waitForSelector(OWNER_SELECTORS, { timeout: this.config.timeout || 10000 })
       } catch (waitError) {
-        // Capture what the page actually returned. On Vercel, qpublic's bot
-        // protection (Imperva/Incapsula) may serve a challenge/block page from
-        // the datacenter IP instead of the real property record, so the owner
-        // elements never appear. Surface that context instead of a bare timeout.
+        // Neither template appeared. Capture what the page actually returned so
+        // the failure is diagnosable (bot block / disclaimer / unexpected page)
+        // instead of a bare timeout.
         const diag = await page
           .evaluate(() => ({
             title: document.title,
@@ -167,9 +173,12 @@ export default class StJohnsScraper extends BaseScraper {
 
   /**
    * Extract property data from St. Johns property details page.
-   * St. Johns uses the newer qpublic template: an rptOwner repeater where each
-   * owner block exposes the name in [...sprOwnerName1...lblSearch] (sprOwnerName2 is
-   * the ownership percentage, not a name) and the mailing address in [...lblOwnerAddress].
+   * Handles BOTH qpublic/Beacon template versions, since which one is served can
+   * vary by client/region (new template seen locally, old template seen on Vercel):
+   *   - new: rptOwner repeater — name in [...sprOwnerName1...lblSearch]
+   *     (sprOwnerName2 is the ownership %, not a name), address in [...lblOwnerAddress]
+   *   - old: [id*="sprPrimaryOwnerName"] for the name + [id*="sprPrimaryOwnerAddress"]
+   *     for the owner-continuation/address block (Flagler-style)
    * The same mailing address is repeated per owner, so addresses are de-duplicated.
    */
   protected async extractPropertyData(
@@ -181,8 +190,8 @@ export default class StJohnsScraper extends BaseScraper {
     try {
       // Extract data using page.evaluate to run in browser context
       const data = await page.evaluate(() => {
-        // Convert address innerHTML (with <br>) into newline-joined, decoded text
-        const htmlToText = (html: string): string => {
+        // Convert innerHTML (with <br>) into trimmed, non-empty lines
+        const htmlToLines = (html: string): string[] => {
           const withMarkers = html.replace(/<br\s*\/?>/gi, '|||NEWLINE|||')
           const temp = document.createElement('div')
           temp.innerHTML = withMarkers
@@ -191,40 +200,67 @@ export default class StJohnsScraper extends BaseScraper {
             .split('|||NEWLINE|||')
             .map(line => line.trim())
             .filter(line => line.length > 0)
-            .join('\n')
         }
 
-        const ownerNames: string[] = []
-        const addresses: string[] = []
-
-        // Each owner block is anchored by its mailing-address element
-        const addressEls = Array.from(document.querySelectorAll('[id$="_lblOwnerAddress"]'))
-
-        for (const addrEl of addressEls) {
-          const prefix = addrEl.id.replace(/_lblOwnerAddress$/, '')
-
-          // Owner name lives in the suppressed search label under sprOwnerName1
-          const nameEl = document.querySelector(`[id^="${prefix}_sprOwnerName1"][id$="lblSearch"]`)
-          const ownerName = nameEl?.textContent?.trim() || ''
-          if (ownerName) {
-            ownerNames.push(ownerName)
+        // --- New template: rptOwner repeater anchored by _lblOwnerAddress ---
+        const extractNew = () => {
+          const ownerNames: string[] = []
+          const addresses: string[] = []
+          const addressEls = Array.from(document.querySelectorAll('[id$="_lblOwnerAddress"]'))
+          for (const addrEl of addressEls) {
+            const prefix = addrEl.id.replace(/_lblOwnerAddress$/, '')
+            const nameEl = document.querySelector(`[id^="${prefix}_sprOwnerName1"][id$="lblSearch"]`)
+            const ownerName = nameEl?.textContent?.trim() || ''
+            if (ownerName) ownerNames.push(ownerName)
+            const address = htmlToLines(addrEl.innerHTML).join('\n')
+            if (address) addresses.push(address)
           }
-
-          const address = htmlToText(addrEl.innerHTML)
-          if (address) {
-            addresses.push(address)
-          }
+          return { ownerNames, addresses }
         }
 
-        // Merge owners; de-duplicate the (repeated) mailing address
-        const mergedOwners = ownerNames.join('\n')
-        const mergedAddress = [...new Set(addresses)].join('\n')
+        // --- Old template: sprPrimaryOwnerName + sprPrimaryOwnerAddress ---
+        const extractOld = () => {
+          const ownerNames: string[] = []
+          const addresses: string[] = []
+          const nameEl = document.querySelector('[id*="sprPrimaryOwnerName"]')
+          const addrEl = document.querySelector('[id*="sprPrimaryOwnerAddress"]')
+          if (nameEl) {
+            const primaryName = nameEl.textContent?.trim() || ''
+            const ownerParts: string[] = primaryName ? [primaryName] : []
+            const addressParts: string[] = []
+            if (addrEl) {
+              for (const line of htmlToLines(addrEl.innerHTML)) {
+                // Address lines start with a street number or a "City ST ZIP" tail;
+                // anything before that is owner-continuation (e.g. a second owner).
+                if (/^\d+/.test(line) || /[A-Z]{2}\s+\d{5}/.test(line) || addressParts.length > 0) {
+                  addressParts.push(line)
+                } else {
+                  ownerParts.push(line)
+                }
+              }
+            }
+            if (ownerParts.length) ownerNames.push(ownerParts.join('\n'))
+            if (addressParts.length) addresses.push(addressParts.join('\n'))
+          }
+          return { ownerNames, addresses }
+        }
+
+        // Prefer the new template; fall back to the old one
+        let res = extractNew()
+        let template = 'new'
+        if (res.ownerNames.length === 0) {
+          res = extractOld()
+          template = 'old'
+        }
 
         return {
-          ownerName: mergedOwners,
-          mailingAddress: mergedAddress,
+          ownerName: res.ownerNames.join('\n'),
+          mailingAddress: [...new Set(res.addresses)].join('\n'),
+          template,
         }
       })
+
+      console.log(`[${this.config.id}] Extracted via "${data.template}" template`)
 
       // Check if we found the required data
       if (!data.ownerName) {
