@@ -1,10 +1,19 @@
 /**
  * Clay County Property Appraiser Scraper
- * URL Pattern: https://qpublic.schneidercorp.com/Application.aspx?AppID=830&LayerID=15008&PageTypeID=4&PageID=6756&Q=...&KeyValue={parcelId}
  *
- * Note: This county can have MULTIPLE OWNERS, each with their own address
- * Owner names are merged with newlines
- * Addresses are merged with newlines
+ * Data source: Clay County GIS "Parcel" ArcGIS MapServer (public, JSON, no browser):
+ *   https://maps.claycountygov.com/server/rest/services/Parcel/MapServer/0/query
+ *
+ * Why not qpublic? The Clay report lives on qpublic.schneidercorp.com, behind
+ * Cloudflare Bot Management. From Vercel's serverless Chromium (AWS datacenter IP)
+ * Cloudflare serves a "Just a moment..." JS challenge that never clears, so the
+ * Puppeteer scrape times out in production while working locally. The county GIS
+ * exposes the same owner + mailing-address data as plain JSON with no bot
+ * protection, so we query it directly — no browser.
+ *
+ * Parcel id is the dashed value in the "ParcelDisp" field, e.g. "31-08-24-007851-058-00".
+ * The layer carries a single owner-name field (Name), so only the primary owner is
+ * returned; additional co-owners shown on qpublic are not available from this source.
  */
 
 import { Page } from 'puppeteer-core'
@@ -12,64 +21,35 @@ import { BaseScraper } from '../base/BaseScraper'
 import { ScrapeRequest, PropertyOwnerData } from '@/types/scraper'
 import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
+const DEFAULT_ARCGIS_QUERY_URL =
+  'https://maps.claycountygov.com/server/rest/services/Parcel/MapServer/0/query'
+
+interface ParcelAttributes {
+  Name?: string
+  Address1?: string
+  Address2?: string
+  Address3?: string
+  City?: string
+  StateProvince?: string
+  ZipCode?: string
+}
+
 export default class ClayScraper extends BaseScraper {
-  /**
-   * Clay uses direct URL navigation with parcelId as KeyValue parameter
-   */
-  protected async navigateToSearch(page: Page, request?: ScrapeRequest): Promise<void> {
-    if (!request) {
-      throw new ScraperError(
-        ErrorCode.VALIDATION_ERROR,
-        'Request is required for Clay County navigation',
-        undefined,
-        this.config.id
-      )
-    }
-
-    // Construct the direct URL with parcelId as KeyValue parameter
-    // Note: The Q parameter seems to be a hash/ID that changes, but KeyValue is the parcelId
-    const url = `${this.config.searchUrl}?AppID=830&LayerID=15008&PageTypeID=4&PageID=6756&KeyValue=${encodeURIComponent(request.identifier)}`
-
-    console.log(`[${this.config.id}] Navigating to: ${url}`)
-
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: this.config.timeout || 30000,
-    })
-  }
-
-  /**
-   * Override the main scrape method to pass request to navigation
-   */
   async scrape(request: ScrapeRequest): Promise<any> {
     const startTime = new Date().toISOString()
     const startTimestamp = Date.now()
 
-    let browser: any = null
-
     try {
-      console.log(`[${this.config.id}] Setting up browser...`)
-      browser = await this.setupBrowser()
+      console.log(`[${this.config.id}] Querying Clay GIS for ${request.identifier}...`)
+      const propertyData = await this.fetchFromArcGIS(request)
 
-      const { createPage } = await import('../utils/browser')
-      const page = await createPage(browser)
-
-      // Navigate directly to property page
-      await this.navigateToSearch(page, request)
-
-      // Wait for content to load
-      console.log(`[${this.config.id}] Waiting for property data...`)
-      await page.waitForSelector('.three-column-blocks', { timeout: this.config.timeout || 10000 })
-
-      // Extract property data
-      console.log(`[${this.config.id}] Extracting property data...`)
-      const propertyData = await this.extractPropertyData(page, request)
-
-      // Validate data
       this.validatePropertyData(propertyData)
 
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
+
+      console.log(`[${this.config.id}] Owner: ${propertyData.ownerNames.join(', ')}`)
+      console.log(`[${this.config.id}] Address: ${propertyData.mailingAddress}`)
 
       return {
         success: true,
@@ -115,157 +95,137 @@ export default class ClayScraper extends BaseScraper {
           duration,
         },
       }
-    } finally {
-      if (browser) {
-        const { closeBrowser } = await import('../utils/browser')
-        await closeBrowser(browser)
-      }
     }
   }
 
   /**
-   * Clay doesn't need a search step - we navigate directly to the property page
+   * Query the Clay County GIS Parcel layer and build owner data.
    */
-  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
-    // No search needed - navigation handles everything
-  }
-
-  /**
-   * Extract property data from Clay property details page
-   * This county can have MULTIPLE owners, each in a separate div.three-column-blocks
-   * We need to extract all owners and merge them
-   */
-  protected async extractPropertyData(
-    page: Page,
-    request: ScrapeRequest
-  ): Promise<PropertyOwnerData> {
+  private async fetchFromArcGIS(request: ScrapeRequest): Promise<PropertyOwnerData> {
     const { identifier, identifierType } = request
 
+    const parcelId = identifier.trim()
+    if (!parcelId) {
+      throw new ScraperError(
+        ErrorCode.VALIDATION_ERROR,
+        `Invalid parcel identifier: "${identifier}"`,
+        undefined,
+        this.config.id,
+        identifier
+      )
+    }
+
+    const baseUrl = this.config.searchUrl || DEFAULT_ARCGIS_QUERY_URL
+    const params = new URLSearchParams({
+      where: `ParcelDisp='${parcelId.replace(/'/g, "''")}'`,
+      outFields: 'Name,Address1,Address2,Address3,City,StateProvince,ZipCode',
+      returnGeometry: 'false',
+      f: 'json',
+    })
+    const url = `${baseUrl}?${params.toString()}`
+
+    console.log(`[${this.config.id}] GET ${url}`)
+
+    let json: any
     try {
-      // Extract data using page.evaluate to run in browser context
-      const data = await page.evaluate(() => {
-        // Helper to decode HTML entities and clean text
-        const cleanText = (text: string): string => {
-          const temp = document.createElement('div')
-          temp.innerHTML = text
-          return (temp.textContent || '').trim()
-        }
-
-        const ownerNames: string[] = []
-        const addresses: string[] = []
-
-        // Find all three-column-blocks divs (each represents one owner)
-        const ownerBlocks = Array.from(document.querySelectorAll('.three-column-blocks'))
-
-        for (const block of ownerBlocks) {
-          // Extract owner name - can be in <span> or <a> tag
-          // Look for the first span or a that's not an address-related element
-          const firstChild = block.firstElementChild
-          let ownerName = ''
-
-          if (firstChild) {
-            // The first element is usually the owner name (span or a)
-            if (firstChild.tagName === 'SPAN' || firstChild.tagName === 'A') {
-              ownerName = cleanText(firstChild.textContent || '')
-            }
-          }
-
-          if (!ownerName) {
-            // Fallback: look for any span or a that doesn't have an id containing 'Address' or 'City'
-            const nameElements = Array.from(block.querySelectorAll('span, a'))
-            for (const el of nameElements) {
-              const id = el.getAttribute('id') || ''
-              if (!id.includes('Address') && !id.includes('City') && !id.includes('Zip')) {
-                const text = cleanText(el.textContent || '')
-                if (text && text.length > 0) {
-                  ownerName = text
-                  break
-                }
-              }
-            }
-          }
-
-          // Extract address parts
-          let address1 = ''
-          let address2 = ''
-          let cityStateZip = ''
-
-          // Look for spans with specific id patterns
-          const spans = Array.from(block.querySelectorAll('span'))
-          for (const span of spans) {
-            const id = span.getAttribute('id') || ''
-            const text = cleanText(span.textContent || '')
-
-            if (id.includes('lblAddress1') && text) {
-              address1 = text
-            } else if (id.includes('lblAddress2') && text) {
-              address2 = text
-            } else if (id.includes('lblCityStateZip') && text) {
-              cityStateZip = text
-            }
-          }
-
-          // Build the full address
-          const addressParts = [address1, address2, cityStateZip].filter(part => part.length > 0)
-          const fullAddress = addressParts.join('\n')
-
-          // Add to arrays if we found data
-          if (ownerName) {
-            ownerNames.push(ownerName)
-          }
-          if (fullAddress) {
-            addresses.push(fullAddress)
-          }
-        }
-
-        // Merge all owners with newlines
-        const mergedOwners = ownerNames.join('\n')
-
-        // Deduplicate addresses - only include unique addresses
-        const uniqueAddresses = [...new Set(addresses)]
-        const mergedAddresses = uniqueAddresses.join('\n')
-
-        return {
-          ownerName: mergedOwners,
-          mailingAddress: mergedAddresses
-        }
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(this.config.timeout || 30000),
       })
-
-      // Check if we found the required data
-      if (!data.ownerName) {
-        throw createNoResultsError(this.config.id, identifier)
-      }
-
-      if (!data.mailingAddress) {
+      if (!res.ok) {
         throw new ScraperError(
-          ErrorCode.EXTRACTION_FAILED,
-          'Failed to extract mailing address',
+          ErrorCode.NAVIGATION_FAILED,
+          `GIS request failed with HTTP ${res.status}`,
           undefined,
           this.config.id,
           identifier
         )
       }
-
-      // Return the structured data
-      return {
-        ownerNames: [data.ownerName],
-        mailingAddress: data.mailingAddress,
-        countyId: this.config.id,
-        identifier,
-        identifierType,
-        scrapedAt: new Date().toISOString(),
-      }
+      json = await res.json()
     } catch (error) {
-      if (error instanceof ScraperError) {
-        throw error
-      }
+      if (error instanceof ScraperError) throw error
       throw new ScraperError(
-        ErrorCode.EXTRACTION_FAILED,
-        `Failed to extract property data: ${error instanceof Error ? error.message : String(error)}`,
+        ErrorCode.NAVIGATION_FAILED,
+        `Failed to reach Clay GIS: ${error instanceof Error ? error.message : String(error)}`,
         error,
         this.config.id,
         identifier
       )
     }
+
+    if (json?.error) {
+      throw new ScraperError(
+        ErrorCode.EXTRACTION_FAILED,
+        `GIS query error: ${json.error.message || JSON.stringify(json.error)}`,
+        json.error,
+        this.config.id,
+        identifier
+      )
+    }
+
+    const features: Array<{ attributes: ParcelAttributes }> = json?.features || []
+    if (features.length === 0) {
+      throw createNoResultsError(this.config.id, identifier)
+    }
+
+    const attr = features[0].attributes
+    const ownerName = (attr.Name || '').trim()
+    if (!ownerName) {
+      throw createNoResultsError(this.config.id, identifier)
+    }
+
+    const mailingAddress = this.buildMailingAddress(attr)
+    if (!mailingAddress) {
+      throw new ScraperError(
+        ErrorCode.EXTRACTION_FAILED,
+        'Failed to build mailing address from GIS attributes',
+        attr,
+        this.config.id,
+        identifier
+      )
+    }
+
+    return {
+      ownerNames: [ownerName],
+      mailingAddress,
+      countyId: this.config.id,
+      identifier,
+      identifierType,
+      scrapedAt: new Date().toISOString(),
+    }
+  }
+
+  /**
+   * Assemble a multi-line mailing address from the GIS owner-address fields.
+   * e.g. "637 Ivory Palm Rd\nOrange Park, FL 32073-1691"
+   */
+  private buildMailingAddress(attr: ParcelAttributes): string {
+    const streetLines = [attr.Address1, attr.Address2, attr.Address3]
+      .map((s) => (s || '').trim())
+      .filter((s) => s.length > 0)
+
+    const zipDigits = (attr.ZipCode || '').replace(/\D/g, '')
+    const zip = zipDigits.length > 5 ? `${zipDigits.slice(0, 5)}-${zipDigits.slice(5, 9)}` : zipDigits
+
+    const cityStateZip = [
+      (attr.City || '').trim(),
+      [(attr.StateProvince || '').trim(), zip].filter(Boolean).join(' '),
+    ]
+      .filter(Boolean)
+      .join(', ')
+
+    return [...streetLines, cityStateZip].filter(Boolean).join('\n')
+  }
+
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
+    // unused — data comes from the GIS REST API in scrape()
+  }
+
+  protected async extractPropertyData(_page: Page, request: ScrapeRequest): Promise<PropertyOwnerData> {
+    return this.fetchFromArcGIS(request)
   }
 }

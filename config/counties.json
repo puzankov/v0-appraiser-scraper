@@ -136,7 +136,7 @@
       "name": "Clay County",
       "state": "FL",
       "appraiserUrl": "https://qpublic.schneidercorp.com",
-      "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx",
+      "searchUrl": "https://maps.claycountygov.com/server/rest/services/Parcel/MapServer/0/query",
       "identifierTypes": [
         "parcelId"
       ],
@@ -223,7 +223,7 @@
       "name": "Flagler County",
       "state": "FL",
       "appraiserUrl": "https://qpublic.schneidercorp.com",
-      "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx?AppID=598&LayerID=9801&PageTypeID=4&PageID=4330&Q=1544474436",
+      "searchUrl": "https://gis.palmcoast.gov/hosting/rest/services/External/FlaglerCountyParcels/MapServer/1/query",
       "identifierTypes": [
         "parcelId"
       ],
