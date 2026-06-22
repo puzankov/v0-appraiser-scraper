@@ -176,31 +176,34 @@ export default class PalmBeachScraper extends BaseScraper {
         }
 
         if (ownerTable) {
-          // Find the data row (first row after header)
-          const rows = Array.from(ownerTable.querySelectorAll('tr'))
+          // Map columns by their header text so we read the right cells regardless
+          // of column order. Columns are: "Owner(s)", "Mailing Address", "Actions"
+          // (the Actions column holds a "Change of Mailing Address" button — never
+          // the address itself).
+          const headerCells = Array.from(ownerTable.querySelectorAll('th'))
+          let ownerIdx = headerCells.findIndex(th => /owner/i.test(th.textContent || ''))
+          let addressIdx = headerCells.findIndex(th => /mailing/i.test(th.textContent || ''))
+          if (ownerIdx < 0) ownerIdx = 0
+          if (addressIdx < 0) addressIdx = 1
 
-          // Skip header row(s) and find the first data row with actual content
+          // Find the first data row (a <tr> with <td> cells) and read those columns
+          const rows = Array.from(ownerTable.querySelectorAll('tr'))
           for (const row of rows) {
             const cells = Array.from(row.querySelectorAll('td'))
+            if (cells.length === 0) continue
 
-            // Look for a row with at least 3 cells (owner, empty, address)
-            if (cells.length >= 3) {
-              // First cell: owner names
-              const ownerCell = cells[0]
-              if (ownerCell) {
-                ownerName = htmlToText(ownerCell.innerHTML)
-              }
+            const ownerCell = cells[ownerIdx]
+            if (ownerCell) {
+              ownerName = htmlToText(ownerCell.innerHTML)
+            }
 
-              // Third cell: mailing address
-              const addressCell = cells[2]
-              if (addressCell) {
-                mailingAddress = htmlToText(addressCell.innerHTML)
-              }
+            const addressCell = cells[addressIdx]
+            if (addressCell) {
+              mailingAddress = htmlToText(addressCell.innerHTML)
+            }
 
-              // If we found data, break
-              if (ownerName && mailingAddress) {
-                break
-              }
+            if (ownerName && mailingAddress) {
+              break
             }
           }
         }
