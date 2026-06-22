@@ -218,7 +218,10 @@ export default class MarionScraper extends BaseScraper {
               // owner). This is robust even when an owner name starts with a digit
               // (e.g. "1255 NW 23RD AVE LAND TRUST"), which a naive
               // "first numeric line = address" rule misclassifies.
-              const cityStateZip = /[A-Z]{2}\s+\d{5}(-\d{4})?\s*$/
+              // Require the 2-letter state to be its own token (preceded by start/space)
+              // so a US "CITY ST 12345" line matches but "PO BOX 70584" does NOT
+              // (its trailing "OX 70584" would otherwise look like a state+zip).
+              const cityStateZip = /(?:^|\s)[A-Z]{2}\s+\d{5}(-\d{4})?\s*$/
               let czIdx = -1
               for (let i = lines.length - 1; i >= 0; i--) {
                 if (cityStateZip.test(lines[i])) {
@@ -234,14 +237,22 @@ export default class MarionScraper extends BaseScraper {
                 ownerParts = lines.slice(0, czIdx - 1)
                 addressParts = lines.slice(czIdx - 1)
               } else {
-                // Fallback: first line starting with a digit begins the address
-                ownerParts = []
-                addressParts = []
-                let inAddress = false
-                for (const line of lines) {
-                  if (!inAddress && /^\d+/.test(line)) inAddress = true
-                  ;(inAddress ? addressParts : ownerParts).push(line)
+                // No US city/state/zip line (e.g. a foreign address). Find where the
+                // address begins by scanning past the first line (always owner) for a
+                // street-number or PO-box line; otherwise assume only the first line is
+                // the owner and the rest is the address.
+                const looksLikeAddressStart = (line: string) =>
+                  /^\d/.test(line) || /^(P\.?\s?O\.?\s?BOX|POST\s+OFFICE\s+BOX|BOX\s)/i.test(line)
+                let addrStart = -1
+                for (let i = 1; i < lines.length; i++) {
+                  if (looksLikeAddressStart(lines[i])) {
+                    addrStart = i
+                    break
+                  }
                 }
+                if (addrStart === -1) addrStart = 1
+                ownerParts = lines.slice(0, addrStart)
+                addressParts = lines.slice(addrStart)
               }
 
               ownerName = ownerParts.join('\n')

@@ -1,0 +1,12 @@
+{
+  "id": "4a0ae97e-8f14-4b6f-950e-d00f4c6ac673",
+  "name": "marion_9035-0968-03",
+  "countyId": "marion",
+  "identifierType": "parcelId",
+  "identifier": "9035-0968-03",
+  "expectedOwnerName": "SUN KAM WING",
+  "expectedAddress": "PO BOX 70584\nKOWLOON CENTRAL POST OFFICE\nHONG KONG",
+  "description": "Marion parcel with foreign (Hong Kong) PO-box mailing address",
+  "createdAt": "2026-06-22T00:00:00.000Z",
+  "updatedAt": "2026-06-22T00:00:00.000Z"
+}
