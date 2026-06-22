@@ -55,7 +55,46 @@ export default class StJohnsScraper extends BaseScraper {
 
       // Wait for content to load
       console.log(`[${this.config.id}] Waiting for property data...`)
-      await page.waitForSelector('[id$="_lblOwnerAddress"]', { timeout: this.config.timeout || 10000 })
+      try {
+        await page.waitForSelector('[id$="_lblOwnerAddress"]', { timeout: this.config.timeout || 10000 })
+      } catch (waitError) {
+        // Capture what the page actually returned. On Vercel, qpublic's bot
+        // protection (Imperva/Incapsula) may serve a challenge/block page from
+        // the datacenter IP instead of the real property record, so the owner
+        // elements never appear. Surface that context instead of a bare timeout.
+        const diag = await page
+          .evaluate(() => ({
+            title: document.title,
+            url: location.href,
+            blocked: /incapsula|incident id|request unsuccessful|access denied|are you a human|captcha/i.test(
+              document.documentElement.outerHTML
+            ),
+            disclaimer: /disclaimer|i acknowledge|i agree|terms of use|please agree/i.test(
+              (document.body ? document.body.innerText : '')
+            ),
+            // Visible button/link labels — if qpublic shows an "Agree" interstitial,
+            // these tell us what to click to get through.
+            buttons: Array.from(document.querySelectorAll('button, input[type="submit"], a.btn, a[id*="Agree"], a[id*="agree"]'))
+              .map((el) => (el.textContent || (el as HTMLInputElement).value || '').trim())
+              .filter(Boolean)
+              .slice(0, 10),
+            bodyStart: (document.body ? document.body.innerText : '').replace(/\s+/g, ' ').trim().slice(0, 300),
+          }))
+          .catch(() => null)
+        console.error(`[${this.config.id}] Owner selector not found. Page diagnostics:`, JSON.stringify(diag))
+        const reason = diag?.blocked
+          ? `qpublic is blocking the request (bot protection)`
+          : diag?.disclaimer
+            ? `qpublic served a disclaimer/agreement interstitial (buttons: ${JSON.stringify(diag.buttons)})`
+            : `owner data not present on the served page`
+        throw new ScraperError(
+          ErrorCode.EXTRACTION_FAILED,
+          `${reason}. Title: "${diag?.title ?? 'unknown'}", URL: ${diag?.url ?? 'unknown'}. Snippet: ${diag?.bodyStart ?? 'n/a'}`,
+          waitError,
+          this.config.id,
+          request.identifier
+        )
+      }
 
       // Extract property data
       console.log(`[${this.config.id}] Extracting property data...`)
