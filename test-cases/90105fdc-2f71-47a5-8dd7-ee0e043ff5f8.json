@@ -1,0 +1,12 @@
+{
+  "id": "90105fdc-2f71-47a5-8dd7-ee0e043ff5f8",
+  "name": "highlands_C-04-34-28-110-1950-0600",
+  "countyId": "highlands",
+  "identifierType": "parcelId",
+  "identifier": "C-04-34-28-110-1950-0600",
+  "expectedOwnerName": "SUN N LAKE IMPROVEMENT DISTRICT",
+  "expectedAddress": "5306 SUN N LAKE BLVD\nSEBRING, FL 33072",
+  "description": "Highlands hcpao.org record (parcel id -> PIN transform)",
+  "createdAt": "2026-06-22T00:00:00.000Z",
+  "updatedAt": "2026-06-22T00:00:00.000Z"
+}

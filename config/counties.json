@@ -307,15 +307,15 @@
       "id": "highlands",
       "name": "Highlands County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.hcpao.org",
+      "searchUrl": "https://www.hcpao.org/Search/Parcel",
       "identifierTypes": [
         "parcelId"
       ],
       "scraperModule": "highlands",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "hillsborough": {
       "id": "hillsborough",
