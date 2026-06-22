@@ -1,0 +1,12 @@
+{
+  "id": "67829f52-bc7b-4cf4-8023-fec1a84cd9f6",
+  "name": "alachua_11475-000-000",
+  "countyId": "alachua",
+  "identifierType": "parcelId",
+  "identifier": "11475-000-000",
+  "expectedOwnerName": "PLATT GERALDINE HEIRS",
+  "expectedAddress": "1733 NW 3RD AVE\nGAINESVILLE, FL 32641",
+  "description": "Alachua GIS PublicParcel FeatureServer lookup",
+  "createdAt": "2026-06-22T00:00:00.000Z",
+  "updatedAt": "2026-06-22T00:00:00.000Z"
+}

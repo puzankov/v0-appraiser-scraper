@@ -5,7 +5,7 @@
       "name": "Alachua County",
       "state": "FL",
       "appraiserUrl": "https://qpublic.schneidercorp.com",
-      "searchUrl": "https://qpublic.schneidercorp.com/Application.aspx?AppID=1081&LayerID=26490&PageTypeID=4&PageID=10770&Q=320373606",
+      "searchUrl": "https://services.arcgis.com/cNo3jpluyt69V8Ek/arcgis/rest/services/PublicParcel/FeatureServer/0/query",
       "identifierTypes": [
         "parcelId"
       ],
