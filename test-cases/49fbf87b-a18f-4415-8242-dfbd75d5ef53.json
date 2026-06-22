@@ -4,9 +4,9 @@
   "countyId": "marion",
   "identifierType": "parcelId",
   "identifier": "558141",
-  "expectedOwnerName": "GASKIN LEONARDO JR\nGASKIN LONDON CHRISTOL",
-  "expectedAddress": "954 SOUTH PLYMOUTH\nROCHESTER NY 14608-2961",
-  "description": "",
+  "expectedOwnerName": "1255 NW 23RD AVE LAND TRUST\nMJBS HOLDINGS LLC TR",
+  "expectedAddress": "120 NW SPANISH RIVER BLVD STE 4\nBOCA RATON FL 33431-4219",
+  "description": "Prime-key lookup; owner is a land trust whose name starts with a digit",
   "createdAt": "2026-02-16T06:32:35.674Z",
   "updatedAt": "2026-02-16T06:32:35.674Z"
 }

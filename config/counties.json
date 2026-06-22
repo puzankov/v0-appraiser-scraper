@@ -437,8 +437,8 @@
       "id": "marion",
       "name": "Marion County",
       "state": "FL",
-      "appraiserUrl": "http://www.pa.marion.fl.us",
-      "searchUrl": "http://www.pa.marion.fl.us/PRC.aspx",
+      "appraiserUrl": "https://www.pa.marion.fl.us",
+      "searchUrl": "https://www.pa.marion.fl.us/PropertySearch.aspx",
       "identifierTypes": [
         "parcelId"
       ],
@@ -446,7 +446,7 @@
       "selectors": {},
       "timeout": 30000,
       "enabled": true,
-      "propertyUrlTemplate": "http://www.pa.marion.fl.us/PRC.aspx?key={ID}&YR=2026&mName=False&mSitus=False"
+      "propertyUrlTemplate": "https://www.pa.marion.fl.us/PropertySearch.aspx?SearchBy=ParcelR&Parms={ID}"
     },
     "martin": {
       "id": "martin",

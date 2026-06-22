@@ -1,7 +1,10 @@
 /**
  * Marion County Property Appraiser Scraper
- * URL Pattern: http://www.pa.marion.fl.us/PRC.aspx?key={parcelId}&YR=2026&mName=False&mSitus=False
- * Note: Owner and address are in the same td element, separated by <br> tags
+ * Flow:
+ *   1. Search page:  https://www.pa.marion.fl.us/PropertySearch.aspx?SearchBy=ParcelR&Parms={parcelId}
+ *   2. The result row links to the property record card with the INTERNAL prime key
+ *      (not the parcel id): https://www.pa.marion.fl.us/PRC.aspx?key={primeKey}&YR=...
+ *   3. Record card (PRC.aspx) has owner + mailing address in one td, separated by <br>.
  */
 
 import { Page } from 'puppeteer-core'
@@ -11,7 +14,8 @@ import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
 export default class MarionScraper extends BaseScraper {
   /**
-   * Marion uses direct URL navigation with key parameter (parcelId) and year
+   * Step 1+2: run the parcel search, then follow the result link (which carries the
+   * internal prime key) to the property record card.
    */
   protected async navigateToSearch(page: Page, request?: ScrapeRequest): Promise<void> {
     if (!request) {
@@ -23,11 +27,42 @@ export default class MarionScraper extends BaseScraper {
       )
     }
 
-    const url = `${this.config.searchUrl}?key=${encodeURIComponent(request.identifier)}&YR=2026&mName=False&mSitus=False`
+    const identifier = request.identifier.trim()
+    const prcBase = this.config.searchUrl.replace(/PropertySearch\.aspx$/i, 'PRC.aspx')
 
-    console.log(`[${this.config.id}] Navigating to: ${url}`)
+    // A real parcel id contains non-digit separators (e.g. "1815-033-003"); a bare
+    // numeric value is the internal prime key, which maps straight to PRC.aspx?key=.
+    const looksLikeParcelId = /\D/.test(identifier)
 
-    await page.goto(url, {
+    let prcUrl: string | null
+    if (looksLikeParcelId) {
+      const searchUrl = `${this.config.searchUrl}?SearchBy=ParcelR&Parms=${encodeURIComponent(identifier)}`
+      console.log(`[${this.config.id}] Searching: ${searchUrl}`)
+      await page.goto(searchUrl, {
+        waitUntil: 'networkidle2',
+        timeout: this.config.timeout || 30000,
+      })
+
+      // Find the PRC.aspx record-card link. Prefer the result row whose link text
+      // matches the parcel id; fall back to the first PRC link on the page.
+      prcUrl = await page.evaluate((pid: string) => {
+        const anchors = Array.from(document.querySelectorAll('a')) as HTMLAnchorElement[]
+        const isPrc = (a: HTMLAnchorElement) => /PRC\.aspx\?key=/i.test(a.getAttribute('href') || '')
+        const exact = anchors.find((a) => isPrc(a) && (a.textContent || '').trim() === pid)
+        const match = exact || anchors.find(isPrc)
+        return match ? match.href : null
+      }, identifier)
+
+      if (!prcUrl) {
+        throw createNoResultsError(this.config.id, identifier)
+      }
+    } else {
+      // Bare numeric identifier = internal prime key → record card directly
+      prcUrl = `${prcBase}?key=${encodeURIComponent(identifier)}&YR=2026&mName=False&mSitus=False`
+    }
+
+    console.log(`[${this.config.id}] Opening record card: ${prcUrl}`)
+    await page.goto(prcUrl, {
       waitUntil: 'networkidle2',
       timeout: this.config.timeout || 30000,
     })
@@ -176,27 +211,36 @@ export default class MarionScraper extends BaseScraper {
             const lines = fullText.split('\n')
 
             if (lines.length > 0) {
-              // Separate owner names from address
-              // Owner names come first, then address (which typically starts with a number)
-              const ownerParts: string[] = []
-              const addressParts: string[] = []
-
-              for (const line of lines) {
-                // If line starts with a number, it's the beginning of the address
-                if (/^\d+/.test(line)) {
-                  // This and all remaining lines are address
-                  addressParts.push(line)
-                  // Get remaining lines
-                  const currentIndex = lines.indexOf(line)
-                  for (let i = currentIndex + 1; i < lines.length; i++) {
-                    if (lines[i]) {
-                      addressParts.push(lines[i])
-                    }
-                  }
+              // Separate owner name(s) from the mailing address.
+              // The block is always: owner line(s), then a street line, then a
+              // "CITY ST ZIP" line. Anchor on the trailing CITY/STATE/ZIP line
+              // (the street is the line just before it; everything above is the
+              // owner). This is robust even when an owner name starts with a digit
+              // (e.g. "1255 NW 23RD AVE LAND TRUST"), which a naive
+              // "first numeric line = address" rule misclassifies.
+              const cityStateZip = /[A-Z]{2}\s+\d{5}(-\d{4})?\s*$/
+              let czIdx = -1
+              for (let i = lines.length - 1; i >= 0; i--) {
+                if (cityStateZip.test(lines[i])) {
+                  czIdx = i
                   break
-                } else if (line) {
-                  // This is part of owner name(s)
-                  ownerParts.push(line)
+                }
+              }
+
+              let ownerParts: string[]
+              let addressParts: string[]
+              if (czIdx >= 1) {
+                // Address = street line + city/state/zip; owner = everything before
+                ownerParts = lines.slice(0, czIdx - 1)
+                addressParts = lines.slice(czIdx - 1)
+              } else {
+                // Fallback: first line starting with a digit begins the address
+                ownerParts = []
+                addressParts = []
+                let inAddress = false
+                for (const line of lines) {
+                  if (!inAddress && /^\d+/.test(line)) inAddress = true
+                  ;(inAddress ? addressParts : ownerParts).push(line)
                 }
               }
 
