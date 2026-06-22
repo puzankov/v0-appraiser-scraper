@@ -1,0 +1,12 @@
+{
+  "id": "2861ace9-7721-4c25-a01c-3cbcc281edca",
+  "name": "bay_06000-088-000",
+  "countyId": "bay",
+  "identifierType": "parcelId",
+  "identifier": "06000-088-000",
+  "expectedOwnerName": "RASNIC, BRANDY RANITTA ETAL",
+  "expectedAddress": "1012 VIRGINIA COURT\nPANAMA CITY, FL 32404",
+  "description": "Bay County GIS Hosted/Parcels (owner per current county GIS roll)",
+  "createdAt": "2026-06-22T00:00:00.000Z",
+  "updatedAt": "2026-06-22T00:00:00.000Z"
+}

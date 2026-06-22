@@ -33,15 +33,15 @@
       "id": "bay",
       "name": "Bay County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://qpublic.schneidercorp.com",
+      "searchUrl": "https://gis.baycountyfl.gov/arcgis/rest/services/Hosted/Parcels/FeatureServer/0/query",
       "identifierTypes": [
         "parcelId"
       ],
       "scraperModule": "bay",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "bradford": {
       "id": "bradford",
