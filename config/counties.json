@@ -614,7 +614,7 @@
       "name": "Polk County",
       "state": "FL",
       "appraiserUrl": "https://www.polkflpa.gov",
-      "searchUrl": "https://www.polkflpa.gov/CamaDisplay.aspx?migratedFrom=org&OutputMode=Display&SearchType=RealEstate&Page=FindByID",
+      "searchUrl": "https://gis.polk-county.net/server/rest/services/Map_Property_Appraiser/MapServer/1/query",
       "identifierTypes": [
         "parcelId"
       ],

@@ -1,7 +1,16 @@
 /**
  * Polk County Property Appraiser Scraper
- * URL Pattern: https://www.polkflpa.gov/CamaDisplay.aspx?migratedFrom=org&OutputMode=Display&SearchType=RealEstate&Page=FindByID&ParcelID={parcelId}
- * Note: Owners are in table rows after "Owners" h4, address in table rows after "Mailing Address" h4
+ *
+ * Data source: Polk County GIS "Map_Property_Appraiser" ArcGIS MapServer (public
+ * JSON, Esri-hosted, no browser):
+ *   https://gis.polk-county.net/server/rest/services/Map_Property_Appraiser/MapServer/1/query
+ *
+ * Why not polkflpa.gov? The CamaDisplay page drops connections from Vercel's
+ * datacenter IP (net::ERR_CONNECTION_TIMED_OUT) even though it loads from a normal
+ * browser. The county GIS Parcels layer exposes the same owner (NAME) and mailing
+ * address (MAIL_ADDR_1/2/3) as plain JSON and is reachable from Vercel.
+ *
+ * The parcel id is the 18-digit PARCELID (no separators); dashed input is normalized.
  */
 
 import { Page } from 'puppeteer-core'
@@ -9,65 +18,32 @@ import { BaseScraper } from '../base/BaseScraper'
 import { ScrapeRequest, PropertyOwnerData } from '@/types/scraper'
 import { ScraperError, ErrorCode, createNoResultsError } from '../utils/errors'
 
+const DEFAULT_ARCGIS_QUERY_URL =
+  'https://gis.polk-county.net/server/rest/services/Map_Property_Appraiser/MapServer/1/query'
+
+interface ParcelAttributes {
+  NAME?: string
+  MAIL_ADDR_1?: string
+  MAIL_ADDR_2?: string
+  MAIL_ADDR_3?: string
+}
+
 export default class PolkScraper extends BaseScraper {
-  /**
-   * Polk uses direct URL navigation with ParcelID parameter
-   */
-  protected async navigateToSearch(page: Page, request?: ScrapeRequest): Promise<void> {
-    if (!request) {
-      throw new ScraperError(
-        ErrorCode.VALIDATION_ERROR,
-        'Request is required for Polk County navigation',
-        undefined,
-        this.config.id
-      )
-    }
-
-    // Polk's FindByID expects the parcel id with no separators (e.g.
-    // "24-28-27-2435-0000-0033" -> "242827243500000033"); strip dashes/spaces.
-    const parcelId = request.identifier.replace(/[^0-9a-zA-Z]/g, '')
-    const url = `${this.config.searchUrl}&ParcelID=${encodeURIComponent(parcelId)}`
-
-    console.log(`[${this.config.id}] Navigating to: ${url}`)
-
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: this.config.timeout || 30000,
-    })
-  }
-
-  /**
-   * Override the main scrape method to pass request to navigation
-   */
   async scrape(request: ScrapeRequest): Promise<any> {
     const startTime = new Date().toISOString()
     const startTimestamp = Date.now()
 
-    let browser: any = null
-
     try {
-      console.log(`[${this.config.id}] Setting up browser...`)
-      browser = await this.setupBrowser()
+      console.log(`[${this.config.id}] Querying Polk GIS for ${request.identifier}...`)
+      const propertyData = await this.fetchFromArcGIS(request)
 
-      const { createPage } = await import('../utils/browser')
-      const page = await createPage(browser)
-
-      // Navigate directly to property page
-      await this.navigateToSearch(page, request)
-
-      // Wait for content to load
-      console.log(`[${this.config.id}] Waiting for property data...`)
-      await page.waitForSelector('h4', { timeout: this.config.timeout || 10000 })
-
-      // Extract property data
-      console.log(`[${this.config.id}] Extracting property data...`)
-      const propertyData = await this.extractPropertyData(page, request)
-
-      // Validate data
       this.validatePropertyData(propertyData)
 
       const endTime = new Date().toISOString()
       const duration = Date.now() - startTimestamp
+
+      console.log(`[${this.config.id}] Owner: ${propertyData.ownerNames.join(', ')}`)
+      console.log(`[${this.config.id}] Address: ${propertyData.mailingAddress}`)
 
       return {
         success: true,
@@ -113,138 +89,116 @@ export default class PolkScraper extends BaseScraper {
           duration,
         },
       }
-    } finally {
-      if (browser) {
-        const { closeBrowser } = await import('../utils/browser')
-        await closeBrowser(browser)
-      }
     }
   }
 
-  /**
-   * Polk doesn't need a search step - we navigate directly to the property page
-   */
-  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
-    // No search needed - navigation handles everything
-  }
-
-  /**
-   * Extract property data from Polk property details page
-   * Owners are in table rows after "Owners" h4
-   * Mailing address is in table rows after "Mailing Address" h4
-   */
-  protected async extractPropertyData(
-    page: Page,
-    request: ScrapeRequest
-  ): Promise<PropertyOwnerData> {
+  private async fetchFromArcGIS(request: ScrapeRequest): Promise<PropertyOwnerData> {
     const { identifier, identifierType } = request
 
+    // PARCELID is the 18-digit id with no separators
+    const parcelId = identifier.replace(/[^0-9a-zA-Z]/g, '')
+    if (!parcelId) {
+      throw new ScraperError(
+        ErrorCode.VALIDATION_ERROR,
+        `Invalid parcel identifier: "${identifier}"`,
+        undefined,
+        this.config.id,
+        identifier
+      )
+    }
+
+    const baseUrl = this.config.searchUrl || DEFAULT_ARCGIS_QUERY_URL
+    const params = new URLSearchParams({
+      where: `PARCELID='${parcelId.replace(/'/g, "''")}'`,
+      outFields: 'NAME,MAIL_ADDR_1,MAIL_ADDR_2,MAIL_ADDR_3',
+      returnGeometry: 'false',
+      f: 'json',
+    })
+    const url = `${baseUrl}?${params.toString()}`
+
+    console.log(`[${this.config.id}] GET ${url}`)
+
+    let json: any
     try {
-      // Extract data using page.evaluate to run in browser context
-      const data = await page.evaluate(() => {
-        const ownerNames: string[] = []
-        const addressLines: string[] = []
-
-        // Find all h4 elements
-        const allH4s = Array.from(document.querySelectorAll('h4'))
-
-        for (const h4 of allH4s) {
-          const text = h4.textContent?.trim() || ''
-
-          // Check if this is the "Owners" header
-          if (text.startsWith('Owners')) {
-            // Find the next table sibling
-            let nextElement = h4.nextElementSibling
-            while (nextElement) {
-              if (nextElement.tagName === 'TABLE') {
-                // Extract owner names from tr.tr1 rows
-                const rows = Array.from(nextElement.querySelectorAll('tr.tr1'))
-                for (const row of rows) {
-                  const cells = Array.from(row.querySelectorAll('td'))
-                  if (cells.length > 0) {
-                    const name = cells[0].textContent?.trim() || ''
-                    if (name) {
-                      ownerNames.push(name)
-                    }
-                  }
-                }
-                break
-              }
-              nextElement = nextElement.nextElementSibling
-            }
-          }
-
-          // Check if this is the "Mailing Address" header
-          if (text.startsWith('Mailing Address')) {
-            // Find the next table sibling
-            let nextElement = h4.nextElementSibling
-            while (nextElement) {
-              if (nextElement.tagName === 'TABLE') {
-                // Extract address lines from all tr rows
-                const rows = Array.from(nextElement.querySelectorAll('tr'))
-                for (const row of rows) {
-                  const cells = Array.from(row.querySelectorAll('td'))
-                  // Get the last td in each row (the one with actual content)
-                  if (cells.length > 0) {
-                    const lastCell = cells[cells.length - 1]
-                    const line = lastCell.textContent?.trim() || ''
-                    if (line && !line.includes('TMPL_') && line.length > 0) {
-                      addressLines.push(line)
-                    }
-                  }
-                }
-                break
-              }
-              nextElement = nextElement.nextElementSibling
-            }
-          }
-        }
-
-        return {
-          ownerNames,
-          addressLines
-        }
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(this.config.timeout || 30000),
       })
-
-      // Check if we found the required data
-      if (!data.ownerNames || data.ownerNames.length === 0) {
-        throw createNoResultsError(this.config.id, identifier)
-      }
-
-      if (!data.addressLines || data.addressLines.length === 0) {
+      if (!res.ok) {
         throw new ScraperError(
-          ErrorCode.EXTRACTION_FAILED,
-          'Failed to extract mailing address',
+          ErrorCode.NAVIGATION_FAILED,
+          `Polk GIS returned HTTP ${res.status}`,
           undefined,
           this.config.id,
           identifier
         )
       }
-
-      // Join owner names and address lines with newlines
-      const ownerName = data.ownerNames.join('\n')
-      const mailingAddress = data.addressLines.join('\n')
-
-      // Return the structured data
-      return {
-        ownerNames: [ownerName],
-        mailingAddress: mailingAddress,
-        countyId: this.config.id,
-        identifier,
-        identifierType,
-        scrapedAt: new Date().toISOString(),
-      }
+      json = await res.json()
     } catch (error) {
-      if (error instanceof ScraperError) {
-        throw error
-      }
+      if (error instanceof ScraperError) throw error
       throw new ScraperError(
-        ErrorCode.EXTRACTION_FAILED,
-        `Failed to extract property data: ${error instanceof Error ? error.message : String(error)}`,
+        ErrorCode.NAVIGATION_FAILED,
+        `Failed to reach Polk GIS: ${error instanceof Error ? error.message : String(error)}`,
         error,
         this.config.id,
         identifier
       )
     }
+
+    if (json?.error) {
+      throw new ScraperError(
+        ErrorCode.EXTRACTION_FAILED,
+        `GIS query error: ${json.error.message || JSON.stringify(json.error)}`,
+        json.error,
+        this.config.id,
+        identifier
+      )
+    }
+
+    const rows: Array<{ attributes: ParcelAttributes }> = json?.features || []
+    if (rows.length === 0) {
+      throw createNoResultsError(this.config.id, identifier)
+    }
+
+    const attr = rows[0].attributes
+    const ownerName = (attr.NAME || '').replace(/\s+/g, ' ').trim()
+    if (!ownerName) {
+      throw createNoResultsError(this.config.id, identifier)
+    }
+
+    const mailingAddress = [attr.MAIL_ADDR_1, attr.MAIL_ADDR_2, attr.MAIL_ADDR_3]
+      .map((s) => (s || '').replace(/\s+/g, ' ').trim())
+      .filter((s) => s.length > 0)
+      .join('\n')
+    if (!mailingAddress) {
+      throw new ScraperError(
+        ErrorCode.EXTRACTION_FAILED,
+        'Failed to build mailing address from GIS attributes',
+        attr,
+        this.config.id,
+        identifier
+      )
+    }
+
+    return {
+      ownerNames: [ownerName],
+      mailingAddress,
+      countyId: this.config.id,
+      identifier,
+      identifierType,
+      scrapedAt: new Date().toISOString(),
+    }
+  }
+
+  protected async performSearch(_page: Page, _request: ScrapeRequest): Promise<void> {
+    // unused — data comes from the GIS REST API in scrape()
+  }
+
+  protected async extractPropertyData(_page: Page, request: ScrapeRequest): Promise<PropertyOwnerData> {
+    return this.fetchFromArcGIS(request)
   }
 }
