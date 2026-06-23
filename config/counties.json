@@ -673,15 +673,16 @@
       "id": "seminole",
       "name": "Seminole County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.scpafl.org",
+      "searchUrl": "https://services9.arcgis.com/Gh9awoU677aKree0/arcgis/rest/services/Florida_Statewide_Cadastral/FeatureServer/0/query",
       "identifierTypes": [
         "parcelId"
       ],
       "scraperModule": "seminole",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.scpafl.org/search/parcels/details?PID={ID}"
     },
     "saintjohns": {
       "id": "saintjohns",
