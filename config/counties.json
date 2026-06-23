@@ -452,15 +452,16 @@
       "id": "martin",
       "name": "Martin County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.pamartinfl.gov",
+      "searchUrl": "https://www.pamartinfl.gov/app/search/real-property",
       "identifierTypes": [
         "parcelId"
       ],
       "scraperModule": "martin",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true,
+      "propertyUrlTemplate": "https://www.pamartinfl.gov/app/search/real-property?search={ID}&searchField=parcelId"
     },
     "miamidade": {
       "id": "miamidade",
