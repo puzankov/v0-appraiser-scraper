@@ -703,15 +703,15 @@
       "id": "stlucie",
       "name": "St. Lucie County",
       "state": "FL",
-      "appraiserUrl": "",
-      "searchUrl": "",
+      "appraiserUrl": "https://www.paslc.gov",
+      "searchUrl": "https://map.paslc.gov/arcgis/rest/services/PROD/SLCPA_PublicParcels/MapServer/0/query",
       "identifierTypes": [
         "parcelId"
       ],
       "scraperModule": "stlucie",
       "selectors": {},
       "timeout": 30000,
-      "enabled": false
+      "enabled": true
     },
     "sumter": {
       "id": "sumter",
